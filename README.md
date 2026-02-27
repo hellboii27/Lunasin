@@ -9,6 +9,18 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 
 ---
 
+## 📸 Preview
+
+### 📱 Aplication
+
+![Preview](screenshots/Screenshot_1.png)   ![Preview](screenshots/Screenshot_2.png)
+![Preview](screenshots/Screenshot_3.png)   ![Preview](screenshots/Screenshot_4.png)
+![Preview](screenshots/Screenshot_5.png)   ![Preview](screenshots/Screenshot_6.png)
+![Preview](screenshots/Screenshot_7.png)   ![Preview](screenshots/Screenshot_8.png)
+![Preview](screenshots/Screenshot_9.png)   ![Preview](screenshots/Screenshot_10.png)
+
+---
+
 ## ✨ Fitur Utama
 
 | Fitur | Keterangan |
