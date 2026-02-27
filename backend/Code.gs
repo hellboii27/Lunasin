@@ -1,21 +1,6 @@
 /**
- * Lunasin v1.0.0 | © 2026 Bayu Wicaksono
+ * Lunasin v1.1.0 | © 2026 Bayu Wicaksono
  */
-
-// [UTIL] Get timezone from active spreadsheet, fallback to Asia/Jakarta
-function _getTZ() {
-  try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    if (ss) {
-      var tz = ss.getSpreadsheetTimeZone();
-      if (tz && tz.length > 0) return tz;
-    }
-  } catch(e) {}
-  return 'Asia/Jakarta';
-}
-
-// [CONFIG] Active timezone — resolved from spreadsheet settings
-var TZ = _getTZ();
 
 // [CONFIG] Sheet names, cache key, and lock timeout
 var SHEET_DEBTS = 'debts';
@@ -43,6 +28,18 @@ var INST_HEADERS = ['id','debt_id','payment_amount','payment_date','created_at']
 
 // [CONFIG] ScriptProperties keys for ID counters
 var _P_DEBT = 'lunasin_ctr_debt', _P_INST = 'lunasin_ctr_inst';
+
+// [FIX #1] Lazy-init TZ — avoids slow SpreadsheetApp call at global scope on every request
+var _TZ = null;
+function _getTZ() {
+  if (_TZ) return _TZ;
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (ss) { var tz = ss.getSpreadsheetTimeZone(); if (tz && tz.length > 0) { _TZ = tz; return _TZ; } }
+  } catch(e) {}
+  _TZ = 'Asia/Jakarta';
+  return _TZ;
+}
 
 // [API] Serve SPA with mobile viewport and iframe permissions
 function doGet() {
@@ -101,32 +98,32 @@ function healthCheck() {
     return { success:true, status:'healthy',
       debts:    Math.max(0, sh.getLastRow()-1),
       payments: Math.max(0, ish.getLastRow()-1),
-      tz: TZ, now: nowWIB(), spreadsheet: ss.getName() };
+      tz: _getTZ(), now: nowWIB(), spreadsheet: ss.getName() };
   } catch(err) { logError('healthCheck',err); return { success:false, status:'unhealthy', message:err.message }; }
 }
 
 // [UTIL] Log info message
 function logInfo(m)      { try { Logger.log('[L:INFO] ' + m); } catch(e){} }
-// [ERROR] Log error with context label
+// [UTIL] Log error with context label
 function logError(ctx,e) { try { Logger.log('[L:ERR] ' + ctx + ' — ' + (e&&(e.message||String(e)))); } catch(_){} }
 // [UTIL] Log warning message
 function logWarn(m)      { try { Logger.log('[L:WARN] ' + m); } catch(e){} }
 
 // [UTIL] Return current timestamp as ISO string in active TZ
 function nowWIB() {
-  return Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ssZ")
+  return Utilities.formatDate(new Date(), _getTZ(), "yyyy-MM-dd'T'HH:mm:ssZ")
          .replace(/(\d{2})(\d{2})$/, '$1:$2');
 }
 
 // [UTIL] Return today as yyyy-MM-dd in active TZ
-function todayWIB() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
+function todayWIB() { return Utilities.formatDate(new Date(), _getTZ(), 'yyyy-MM-dd'); }
 
 // [UTIL] Format Date or string to yyyy-MM-dd in active TZ
 function fmtDate(v) {
   if (!v) return '';
   try {
     var d = (v instanceof Date) ? v : new Date(v);
-    return isNaN(d.getTime()) ? '' : Utilities.formatDate(d, TZ, 'yyyy-MM-dd');
+    return isNaN(d.getTime()) ? '' : Utilities.formatDate(d, _getTZ(), 'yyyy-MM-dd');
   } catch(e) { return ''; }
 }
 
@@ -136,7 +133,7 @@ function fmtDT(v) {
   try {
     var d = (v instanceof Date) ? v : new Date(v);
     if (isNaN(d.getTime())) return '';
-    return Utilities.formatDate(d, TZ, "yyyy-MM-dd'T'HH:mm:ssZ")
+    return Utilities.formatDate(d, _getTZ(), "yyyy-MM-dd'T'HH:mm:ssZ")
            .replace(/(\d{2})(\d{2})$/, '$1:$2');
   } catch(e) { return ''; }
 }
@@ -148,22 +145,9 @@ function _nextCtr(key) {
 }
 
 // [UTIL] Return today as yyyyMMdd string for ID prefix
-function _dateTag() { return Utilities.formatDate(new Date(), TZ, 'yyyyMMdd'); }
+function _dateTag() { return Utilities.formatDate(new Date(), _getTZ(), 'yyyyMMdd'); }
 
-// [PERF] Build id to rowIndex lookup map from bulk-read id column
-function _buildIdMap(idCol) {
-  var map = {};
-  for (var i = 1; i < idCol.length; i++) {
-    var v = String(idCol[i][0]);
-    if (v) map[v] = i + 1;
-  }
-  return map;
-}
-
-// [UTIL] Check ID uniqueness via O1 lookup map
-function _isUniqueInMap(id, map) { return !map[id]; }
-
-// [UTIL] Check ID uniqueness against sheet column (fallback)
+// [UTIL] Check ID uniqueness against sheet column
 function _isUnique(id,sh,ci) {
   try { var lr=sh.getLastRow(); if(lr<=1)return true; var col=sh.getRange(2,ci+1,lr-1,1).getValues(); for(var i=0;i<col.length;i++){if(String(col[i][0])===id)return false;} return true; }
   catch(e){ return true; }
@@ -309,14 +293,16 @@ function getDebts(params) {
     var q           = sStr(params.q||'',100).toLowerCase();
     var onlyArch    = params.onlyArchived  === true || params.onlyArchived  === 'true';
     var inclArch    = params.includeArchived === true || params.includeArchived === 'true';
-    if(!q){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } }
+    // [FIX #5] Only use cache for unfiltered non-archived requests — archived and search bypass cache
+    if(!q && !onlyArch){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } }
     var sh=getOrCreateSheet(SHEET_DEBTS), lr=sh.getLastRow();
     if(lr<=1) return {success:true,data:[],total:0,page:page,limit:limit,summary:defSummary()};
     var raw=sh.getRange(1,1,lr,sh.getLastColumn()).getValues();
     var all=[];
     for(var r=1;r<raw.length;r++){if(raw[r][DC.id]){var _d=rToDebt(raw[r]);_d._rowIdx=r;all.push(_d);}}
     all.reverse();
-    if(!q) cSet(CACHE_KEY,all);
+    // [FIX #5] Only cache the full unfiltered result set
+    if(!q && !onlyArch) cSet(CACHE_KEY,all);
     return _page(all,page,limit,q,onlyArch,inclArch);
   } catch(err){ logError('getDebts',err); return {success:false,message:err.message,data:[],total:0,summary:defSummary()}; }
 }
@@ -334,7 +320,7 @@ function _page(all,page,limit,q,onlyArch,inclArch) {
   list = list.slice().sort(function(a, b) { return (b._rowIdx || 0) - (a._rowIdx || 0); });
   var total=list.length, start=(page-1)*limit;
   var slice=list.slice(start,start+limit);
-  // iterating 'list' would inflate totals with archived data
+  // [FIX #4] Summary always computed from ALL non-archived debts — independent of search filter
   var activeSrc = all.filter(function(d){ return !d.archived; });
   var s = defSummary();
   s.archived = all.filter(function(d){ return !!d.archived; }).length;
@@ -434,9 +420,9 @@ function updateDebt(params) {
   finally{ releaseLock(lock); }
 }
 
-// [API] Delete debt and associated installments with rollback on failure
+// [FIX #2] deleteDebt — removed broken rollback; full atomic delete (debt + installments) with no partial state
 function deleteDebt(params) {
-  var lock=acquireLock(); var snapshot=null;
+  var lock=acquireLock();
   try {
     if(!params.id) throw new Error('id diperlukan');
     var id=sStr(String(params.id),50);
@@ -446,7 +432,6 @@ function deleteDebt(params) {
     var idcol=dsh.getRange(1,1,dlr,1).getValues(); var rowNum=-1;
     for(var r=idcol.length-1;r>=1;r--){if(String(idcol[r][0])===id){rowNum=r+1;break;}}
     if(rowNum===-1) throw new Error('Debt tidak ditemukan: '+id);
-    snapshot=dsh.getRange(rowNum,1,1,nc).getValues()[0];
     dsh.deleteRow(rowNum);
     var ish=getOrCreateSheet(SHEET_INST), ilr=ish.getLastRow();
     if(ilr>1){
@@ -454,12 +439,11 @@ function deleteDebt(params) {
       for(var i=1;i<icol.length;i++){if(String(icol[i][0])===id)dels.push(i+1);}
       for(var j=dels.length-1;j>=0;j--){if(dels[j]>=2)ish.deleteRow(dels[j]);}
     }
-    invalidateCache(); snapshot=null;
+    invalidateCache();
     logInfo('deleteDebt OK: '+id);
     return {success:true,deleted_id:id};
   } catch(err){
     logError('deleteDebt',err);
-    if(snapshot){try{getOrCreateSheet(SHEET_DEBTS).appendRow(snapshot);}catch(re){logError('deleteDebt rollback FAILED',re);}}
     return {success:false,message:err.message};
   } finally{ releaseLock(lock); }
 }

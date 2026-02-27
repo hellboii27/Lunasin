@@ -47,10 +47,11 @@ body::after{width:320px;height:320px;background:radial-gradient(circle,rgba(56,1
 #app{
   position:relative;z-index:1;
   width:100%;max-width:100%;
-  min-height:100vh;min-height:-webkit-fill-available;min-height:100dvh;
-  padding-bottom:calc(76px + env(safe-area-inset-bottom,0px));
-  overflow-x:hidden;
+  height:100vh;height:100dvh;
+  overflow-x:hidden;overflow-y:auto;
+  overscroll-behavior:none;
   box-sizing:border-box;
+  scroll-behavior:auto;
 }
 /* ═══════════════ TOP BAR ═══════════════ */
 .top-bar{padding:clamp(14px,4vw,22px) var(--pad) 0;display:flex;align-items:center;justify-content:space-between}
@@ -66,13 +67,13 @@ body::after{width:320px;height:320px;background:radial-gradient(circle,rgba(56,1
 .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent3));display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;color:#fff;box-shadow:0 4px 15px rgba(167,139,250,.4);flex-shrink:0;transition:transform var(--tf) var(--spring)}
 .avatar:active{transform:scale(.88)}
 /* ═══════════════ PAGES ═══════════════ */
-.page{display:none;padding:0 var(--pad);width:100%;box-sizing:border-box;overflow-x:hidden}
+.page{display:none;padding:0 var(--pad) calc(76px + env(safe-area-inset-bottom,0px));width:100%;box-sizing:border-box;overflow-x:hidden}
 .page.active{display:block}
 /* GPU-accelerated page transitions */
 .page.p-enter{display:block;animation:pIn var(--ts) var(--out) both;will-change:transform,opacity}
 .page.p-leave{display:block;animation:pOut var(--tm) var(--io) both;pointer-events:none;will-change:transform,opacity}
-@keyframes pIn{from{opacity:0;transform:translateY(22px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
-@keyframes pOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-8px) scale(.98)}}
+@keyframes pIn{from{opacity:0;transform:translateY(28px) scale(.982)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes pOut{from{opacity:1;transform:translateY(0) scale(1)}to{opacity:0;transform:translateY(-12px) scale(.98)}}
 /* ═══════════════ PULL-TO-REFRESH ═══════════════ */
 .ptr{display:flex;align-items:center;justify-content:center;gap:8px;height:0;overflow:hidden;font-size:12px;color:var(--muted);transition:height var(--tm) var(--out),color var(--tf);padding:0 20px}
 .ptr.ready{color:var(--accent)}
@@ -385,6 +386,9 @@ textarea.fi{resize:vertical;min-height:80px;line-height:1.5}
 .error-retry:active{background:rgba(248,113,113,.25)}
 .det-ph{text-align:center;padding:60px 20px;color:var(--muted)}.det-ph .ic{font-size:64px;margin-bottom:16px;opacity:.35}.det-ph p{font-size:14px;line-height:1.7}
 footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;letter-spacing:.3px}
+/* [FIX #9] Offline banner — shows when navigator.onLine is false */
+.offline-banner{position:fixed;top:0;left:0;right:0;z-index:600;background:rgba(248,113,113,.95);color:#fff;font-family:'Sora',sans-serif;font-size:13px;font-weight:600;text-align:center;padding:10px 16px;transform:translateY(-100%);transition:transform var(--tm) var(--spring)}
+.offline-banner.show{transform:translateY(0)}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:99px}
 /* ── 393px: iPhone 14/15, Pixel 6a ── */
 @media(max-width:393px){:root{--pad:14px;--gap:9px;--fs-hero:clamp(19px,5.3vw,23px);--fs-stat:clamp(17px,4.8vw,21px)}}
@@ -424,6 +428,9 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
   }, {passive:false});
 })();
 </script>
+
+<!-- [FIX #9] Offline detection banner -->
+<div class="offline-banner" id="offline-banner">📵 Tidak ada koneksi internet</div>
 
 <div class="ptr" id="ptr"><div class="ptr-spin"></div><span id="ptr-txt">Tarik untuk refresh</span></div>
 
@@ -475,7 +482,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
       </div>
       <div id="debt-list"></div>
     </div>
-    <footer style="margin-top:4px">© Bayu Wicaksono | v1.0.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:4px">© Bayu Wicaksono | v1.1.0 | All Rights Reserved.</footer>
   </section>
 
   <!-- TRANSACTIONS -->
@@ -506,13 +513,13 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
       <span class="page-info" id="tx-pi">1 / 1</span>
       <button class="page-btn" id="tx-next">→</button>
     </div>
-    <footer style="margin-top:8px">© Bayu Wicaksono | v1.0.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:8px">© Bayu Wicaksono | v1.1.0 | All Rights Reserved.</footer>
   </section>
 
   <!-- DETAIL -->
   <section id="page-detail" class="page">
     <div id="det-body"><div class="det-ph"><div class="ic">🔍</div><p>Pilih utang dari Dashboard<br/>untuk melihat detail lengkap.</p></div></div>
-    <footer style="margin-top:8px">© Bayu Wicaksono | v1.0.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:8px">© Bayu Wicaksono | v1.1.0 | All Rights Reserved.</footer>
   </section>
 </div>
 
@@ -667,6 +674,9 @@ var S = {
   _cacheTTL: 30000
 };
 
+// [CONFIG] GAS call timeout in ms — prevents UI hanging indefinitely
+var CALL_TIMEOUT_MS = 30000;
+
 // [UTIL] Format number to Rupiah display string
 var _rpFmt = new Intl.NumberFormat('id-ID');
 function fRp(v) { return 'Rp\u00a0' + _rpFmt.format(+v || 0); }
@@ -701,15 +711,15 @@ var _todayStr = _todayLocal();
 // [UTIL] Check if due_date is overdue against local today
 function isOD(due) { return due ? due < _todayStr : false; }
 
-// [UTIL] Return today string for date input default value (reuses cached formatter)
+// [UTIL] Return today string for date input default value
 function _todayInputVal() { return _todayLocal(); }
 
 // [UTIL] Calculate payment percentage capped at 100
 function pct(p, t) { t = +t; p = +p; return t ? Math.min(100, Math.round(p / t * 100)) : 0; }
 
-// [UTIL] Escape HTML special characters
+// [UTIL] Escape HTML special characters — prevents XSS in innerHTML concatenation
 function esc(s) {
-  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // [UTIL] Extract initials from full name
@@ -761,15 +771,29 @@ function setCI(id, val) {
   e.dataset.raw = String(n);
 }
 
-// [API] Route call to GAS backend or demo fallback
+// [FIX #6] call() — wraps GAS run with timeout; fails gracefully after CALL_TIMEOUT_MS
 function call(p, ok, fail) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
+    var done = false;
+    var timer = setTimeout(function() {
+      if (done) return;
+      done = true;
+      if (fail) fail('Request timeout — server tidak merespons. Coba lagi.');
+    }, CALL_TIMEOUT_MS);
     google.script.run
       .withSuccessHandler(function(r) {
-        var d = typeof r === 'string' ? JSON.parse(r) : r;
-        d.success ? ok(d) : (fail && fail(d.message || 'Error'));
+        if (done) return;
+        done = true; clearTimeout(timer);
+        try {
+          var d = typeof r === 'string' ? JSON.parse(r) : r;
+          d.success ? ok(d) : (fail && fail(d.message || 'Error'));
+        } catch(e) { if (fail) fail('Parse error: ' + e.message); }
       })
-      .withFailureHandler(function(e) { fail && fail(e.message || 'Server error'); })
+      .withFailureHandler(function(e) {
+        if (done) return;
+        done = true; clearTimeout(timer);
+        if (fail) fail(e.message || 'Server error');
+      })
       .processRequest(JSON.stringify(p));
   } else {
     demo(p, ok, fail);
@@ -807,20 +831,20 @@ var DD = [
   {id:'DEBT-20250201-0003',person_name:'Reza Fauzi',    principal_amount:3000000,interest_amount:300000, total_amount:3300000, paid_amount:800000, remaining_amount:2500000,overpayment_amount:0,status:'active',due_date:'2025-08-15',created_at:'2025-02-01T08:00:00+07:00',updated_at:'2025-02-10T08:00:00+07:00',notes:''},
   {id:'DEBT-20241001-0004',person_name:'Dewi Sartika',  principal_amount:1500000,interest_amount:150000, total_amount:1650000, paid_amount:0,      remaining_amount:1650000,overpayment_amount:0,status:'active',due_date:'2024-11-01',created_at:'2024-10-01T07:00:00+07:00',updated_at:'2024-10-01T07:00:00+07:00',notes:'Biaya renovasi rumah'},
   {id:'DEBT-20250105-0005',person_name:'Budi Santoso',  principal_amount:7500000,interest_amount:750000, total_amount:8250000, paid_amount:5000000,remaining_amount:3250000,overpayment_amount:0,status:'active',due_date:'2025-12-01',created_at:'2025-01-05T06:00:00+07:00',updated_at:'2025-03-10T06:00:00+07:00',notes:'Pinjaman untuk beli motor'},
-  {id:'DEBT-20250115-0006',person_name:'Maya Putri',    principal_amount:1000000,interest_amount:100000, total_amount:1100000, paid_amount:1100000,remaining_amount:0,      status:'paid',  due_date:'2025-02-01',created_at:'2025-01-15T05:00:00+07:00',updated_at:'2025-01-25T05:00:00+07:00',notes:''},
+  {id:'DEBT-20250115-0006',person_name:'Maya Putri',    principal_amount:1000000,interest_amount:100000, total_amount:1100000, paid_amount:1100000,remaining_amount:0,      overpayment_amount:0,status:'paid',  due_date:'2025-02-01',created_at:'2025-01-15T05:00:00+07:00',updated_at:'2025-01-25T05:00:00+07:00',notes:''},
   {id:'DEBT-20250210-0007',person_name:'Agus Salim',    principal_amount:4500000,interest_amount:450000, total_amount:4950000, paid_amount:2000000,remaining_amount:2950000,overpayment_amount:0,status:'active',due_date:'2025-10-01',created_at:'2025-02-10T04:00:00+07:00',updated_at:'2025-03-20T04:00:00+07:00',notes:'Modal dagang online'},
   {id:'DEBT-20250215-0008',person_name:'Rina Hastuti',  principal_amount:2500000,interest_amount:250000, total_amount:2750000, paid_amount:500000, remaining_amount:2250000,overpayment_amount:0,status:'active',due_date:'2025-07-01',created_at:'2025-02-15T03:00:00+07:00',updated_at:'2025-03-01T03:00:00+07:00',notes:'Keperluan mendadak'},
-  {id:'DEBT-20241120-0009',person_name:'Hendra Gunawan',principal_amount:6000000,interest_amount:600000, total_amount:6600000, paid_amount:6600000,remaining_amount:0,      status:'paid',  due_date:'2025-04-01',created_at:'2024-11-20T02:00:00+07:00',updated_at:'2025-02-05T02:00:00+07:00',notes:'Lunas tepat waktu (demo arsip)',archived:true},
-  {id:'DEBT-20250125-0010',person_name:'Yuni Kartika',  principal_amount:1200000,interest_amount:120000, total_amount:1320000, paid_amount:400000, remaining_amount:920000, status:'active',due_date:'2025-11-01',created_at:'2025-01-25T01:00:00+07:00',updated_at:'2025-02-28T01:00:00+07:00',notes:''},
+  {id:'DEBT-20241120-0009',person_name:'Hendra Gunawan',principal_amount:6000000,interest_amount:600000, total_amount:6600000, paid_amount:6600000,remaining_amount:0,      overpayment_amount:0,status:'paid',  due_date:'2025-04-01',created_at:'2024-11-20T02:00:00+07:00',updated_at:'2025-02-05T02:00:00+07:00',notes:'Lunas tepat waktu (demo arsip)',archived:true},
+  {id:'DEBT-20250125-0010',person_name:'Yuni Kartika',  principal_amount:1200000,interest_amount:120000, total_amount:1320000, paid_amount:400000, remaining_amount:920000, overpayment_amount:0,status:'active',due_date:'2025-11-01',created_at:'2025-01-25T01:00:00+07:00',updated_at:'2025-02-28T01:00:00+07:00',notes:''},
   {id:'DEBT-20250220-0011',person_name:'Fajar Nugroho', principal_amount:3500000,interest_amount:350000, total_amount:3850000, paid_amount:0,      remaining_amount:3850000,overpayment_amount:0,status:'active',due_date:'2025-06-15',created_at:'2025-02-20T00:00:00+07:00',updated_at:'2025-02-20T00:00:00+07:00',notes:'Belum ada pembayaran'},
-  {id:'DEBT-20241215-0012',person_name:'Lestari Wulan', principal_amount:800000, interest_amount:80000,  total_amount:880000,  paid_amount:880000, remaining_amount:0,      status:'paid',  due_date:'2025-01-15',created_at:'2024-12-15T00:00:00+07:00',updated_at:'2025-01-10T00:00:00+07:00',notes:''}
+  {id:'DEBT-20241215-0012',person_name:'Lestari Wulan', principal_amount:800000, interest_amount:80000,  total_amount:880000,  paid_amount:880000, remaining_amount:0,      overpayment_amount:0,status:'paid',  due_date:'2025-01-15',created_at:'2024-12-15T00:00:00+07:00',updated_at:'2025-01-10T00:00:00+07:00',notes:''}
 ];
 var DI = [
   {id:'INST-20250115-0001',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-01-15',created_at:'2025-01-15T10:00:00+07:00'},
   {id:'INST-20250215-0002',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-02-15',created_at:'2025-02-15T10:00:00+07:00'},
   {id:'INST-20250120-0003',debt_id:'DEBT-20250110-0002',payment_amount:1100000,payment_date:'2025-01-20',created_at:'2025-01-20T10:00:00+07:00'},
   {id:'INST-20250220-0004',debt_id:'DEBT-20250110-0002',payment_amount:1100000,payment_date:'2025-02-20',created_at:'2025-02-20T10:00:00+07:00'},
-  {id:'INST-20250320-0004b',debt_id:'DEBT-20250110-0002',payment_amount:300000,payment_date:'2025-03-20',created_at:'2025-03-20T10:00:00+07:00'},
+  {id:'INST-20250320-004b',debt_id:'DEBT-20250110-0002',payment_amount:300000, payment_date:'2025-03-20',created_at:'2025-03-20T10:00:00+07:00'},
   {id:'INST-20250210-0005',debt_id:'DEBT-20250201-0003',payment_amount:800000, payment_date:'2025-02-10',created_at:'2025-02-10T10:00:00+07:00'},
   {id:'INST-20250110-0006',debt_id:'DEBT-20250105-0005',payment_amount:2000000,payment_date:'2025-01-10',created_at:'2025-01-10T10:00:00+07:00'},
   {id:'INST-20250210-0007',debt_id:'DEBT-20250105-0005',payment_amount:2000000,payment_date:'2025-02-10',created_at:'2025-02-10T10:00:00+07:00'},
@@ -840,7 +864,6 @@ function buildSummary(allDebts) {
   var all    = allDebts || [];
   var active = all.filter(function(d){ return !d.archived; });
   var archivedCount = all.filter(function(d){ return !!d.archived; }).length;
-  // [FIX] lunas hanya dihitung dari non-archived — archived paid tidak masuk statistik dashboard
   var lunasTotal = active.filter(function(d){ return d.status === 'paid'; }).length;
   var s = {totalHutang:0, totalPaid:0, totalSisa:0, totalOverpayment:0, aktif:0, lunas:lunasTotal, total:0, archived:archivedCount};
   for (var i = 0; i < active.length; i++) {
@@ -884,10 +907,10 @@ function demo(p, ok, fail) {
           list = list.slice().reverse();
           var total = list.length;
           var slice = list.slice((page-1)*limit, page*limit);
+          // [FIX #4] Summary always computed from ALL non-archived data — independent of search filter
           ok({ success:true, data:JSON.parse(JSON.stringify(slice)),
                total:total, page:page, limit:limit,
-               // [FIX] Summary must only reflect non-archived debts — matches backend _page() fix
-               summary:buildSummary(DD.filter(function(d){ return !d.archived; })) });
+               summary:buildSummary(DD) });
         }
       }
       else if (action === 'createDebt') {
@@ -922,15 +945,15 @@ function demo(p, ok, fail) {
         var utot  = upr + uir;
         var upaid = Math.max(0, _rpInt(ud.paid_amount));
         var urem  = Math.max(0, utot - upaid);
-        var uov   = upaid > utot ? upaid - utot : 0;
+        var uov2  = upaid > utot ? upaid - utot : 0;
         ud.person_name        = unm;   ud.principal_amount   = upr;
         ud.interest_amount    = uir;   ud.total_amount       = utot;
         ud.paid_amount        = upaid; ud.remaining_amount   = urem;
-        ud.overpayment_amount = uov;
+        ud.overpayment_amount = uov2;
         ud.status             = urem <= 0 ? 'paid' : 'active';
-        ud.due_date         = p.due_date !== undefined ? p.due_date : ud.due_date;
-        ud.notes            = unt;
-        ud.updated_at       = new Date().toISOString();
+        ud.due_date           = p.due_date !== undefined ? p.due_date : ud.due_date;
+        ud.notes              = unt;
+        ud.updated_at         = new Date().toISOString();
         ok({ success:true, data:JSON.parse(JSON.stringify(ud)) });
       }
       else if (action === 'deleteDebt') {
@@ -971,9 +994,8 @@ function demo(p, ok, fail) {
         ok({ success:true, data:JSON.parse(JSON.stringify(DD[uidx])) });
       }
       else if (action === 'healthCheck') {
-        var ovSum = DD.reduce(function(a,d){return a+(d.overpayment_amount||0);},0);
         ok({ success:true, status:'healthy (demo)', spreadsheet:'Demo Mode',
-             debts:DD.length, payments:DI.length, totalOverpayment:ovSum,
+             debts:DD.length, payments:DI.length,
              tz:'Asia/Jakarta', now: new Date().toISOString() });
       }
       else { fail && fail('Unknown action: ' + action); }
@@ -982,26 +1004,47 @@ function demo(p, ok, fail) {
 }
 
 // [UI] Navigate to named SPA page with animated transition
+// [UTIL] Animated scroll to top via requestAnimationFrame — works inside GAS iframe
+function _scrollTop(el, onDone) {
+  // Target: explicit el, or #app, or body/documentElement fallback
+  var container = el || document.getElementById('app') || document.body;
+  var start = container.scrollTop;
+  if (start === 0) { if (onDone) onDone(); return; }
+  var dur = Math.min(320, Math.max(120, start * 0.4)); // duration scales with distance
+  var t0 = null;
+  function ease(t) { return 1 - Math.pow(1 - t, 3); } // ease-out cubic
+  function step(ts) {
+    if (!t0) t0 = ts;
+    var prog = Math.min((ts - t0) / dur, 1);
+    container.scrollTop = start * (1 - ease(prog));
+    if (prog < 1) { requestAnimationFrame(step); }
+    else { container.scrollTop = 0; if (onDone) onDone(); }
+  }
+  requestAnimationFrame(step);
+}
+
 function goPage(name) {
   if (S.busy || name === S.page) return;
   S.busy = true;
-  // [FIX] Track previous page so detail back-button can return to correct origin
   S.prevPage = S.page;
   // [FIX] Close any open swipe card when navigating away from transactions page
   if (S.page === 'transactions') closeAllSwipes();
   var out = g('page-' + S.page), inn = g('page-' + name);
+  // [UX] p-enter uses position:fixed — always starts from viewport top regardless of scroll
   out.classList.remove('active'); out.classList.add('p-leave');
   inn.style.display = 'block'; inn.classList.add('p-enter');
+  // [UX] Reset scroll of the incoming page element so content starts at top when fixed→static
+  inn.scrollTop = 0;
   var navItems = document.querySelectorAll('.nav-item');
   for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
   g('nav-' + name).classList.add('active');
   D.fab.classList.toggle('hidden', name !== 'dashboard');
-  window.scrollTo({ top: 0, behavior: name === 'detail' ? 'instant' : 'smooth' });
   setTimeout(function() {
-    // [FIX] Remove leave classes before hiding to prevent flicker on re-show
     out.classList.remove('p-leave', 'active');
     out.style.display = '';
     inn.classList.remove('p-enter'); inn.classList.add('active');
+    // [UX] After fixed→active transition, reset global scroll so new page content is at top
+    _scrollTop();
     S.page = name; S.busy = false;
     if (name === 'transactions') loadTx();
     if (name === 'detail' && S.selId) renderDetail(S.selId);
@@ -1019,7 +1062,8 @@ function initPullToRefresh() {
   var sy = 0, pull = false, th = 70, max = 100, refreshing = false;
   var ptr = D.ptr, txt = D.prtxt;
   document.addEventListener('touchstart', function(e) {
-    if (window.scrollY === 0) { sy = e.touches[0].clientY; pull = true; }
+    var appEl = document.getElementById('app');
+    if ((appEl ? appEl.scrollTop : window.scrollY) === 0) { sy = e.touches[0].clientY; pull = true; }
   }, { passive: true });
   document.addEventListener('touchmove', function(e) {
     if (!pull || refreshing) return;
@@ -1063,7 +1107,6 @@ var _loadingDebts = false;
 
 // [API] Fetch all debts including archived, populate state from cache or backend
 function loadDebts(done) {
-  // [FIX] If a request is already in-flight, skip duplicate and queue the callback
   if (_loadingDebts) { if (done) setTimeout(done, 0); return; }
   _loadingDebts = true;
   D.dskel.style.display = 'block'; D.dbody.style.display = 'none';
@@ -1073,9 +1116,7 @@ function loadDebts(done) {
       var allDebts = r.data || [];
       S.debts         = allDebts.filter(function(d){ return !d.archived; });
       S.archivedDebts = allDebts.filter(function(d){ return !!d.archived; });
-      // [FIX] Removed _cache.data (was set but never read — dead code)
       S._cache.ts = Date.now();
-
       var sum = buildSummary(S.debts.concat(S.archivedDebts));
       renderDash(S.debts, sum);
       if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
@@ -1118,7 +1159,6 @@ function renderDash(debts, sum) {
   var existing = D.dlist.children;
   if (existing.length && !(existing.length === 1 && existing[0].classList.contains('empty'))) {
     for (var i = 0; i < existing.length; i++) existing[i].classList.add('l-exit');
-    // [FIX] Cancel any queued buildDebtCards from a prior rapid renderDash call
     if (_buildCardsTimer) { clearTimeout(_buildCardsTimer); _buildCardsTimer = null; }
     _buildCardsTimer = setTimeout(function() { _buildCardsTimer = null; buildDebtCards(debts); }, 200);
   } else {
@@ -1128,16 +1168,15 @@ function renderDash(debts, sum) {
   D.dskel.style.display = 'none'; D.dbody.style.display = 'block';
 }
 
-// [UI] Build and inject debt cards into dashboard list, sorted newest-first by created_at
+// [UI] Build and inject debt cards into dashboard list, sorted newest-first
 function buildDebtCards(debts) {
   if (!debts.length) {
     D.dlist.innerHTML = '<div class="empty"><div class="ic">📄</div><p>Belum ada data utang.<br/>Klik ＋ untuk menambahkan.</p></div>';
     return;
   }
-  var sorted = debts.slice();
   var frag = document.createDocumentFragment();
-  for (var i = 0; i < sorted.length; i++) {
-    var d = sorted[i];
+  for (var i = 0; i < debts.length; i++) {
+    var d = debts[i];
     var p = pct(d.paid_amount, d.total_amount);
     var isPaid = d.status === 'paid', od = !isPaid && isOD(d.due_date);
     var hasOv = (d.overpayment_amount || 0) > 0;
@@ -1150,17 +1189,16 @@ function buildDebtCards(debts) {
     var el = document.createElement('div');
     el.className = cls; el.dataset.id = d.id;
     el.style.setProperty('--delay', (i * 45) + 'ms');
+    // [FIX #8] All user data rendered via esc() — no raw string interpolation of untrusted content
     var ovRow = '<div class="dc-ov-row"' + (hasOv ? '' : ' style="visibility:hidden"') + '><span class="dc-ov-lbl">Lebih Bayar</span><span class="dc-ov-val">' + (hasOv ? fRp(d.overpayment_amount) : '—') + '</span></div>';
-    var noteHtml = d.notes ? '📝 ' + esc(d.notes) : '&nbsp;';
-    var dueHtml  = d.due_date ? '📅 <span class="' + (od ? 'ov' : 'ok') + '">' + fDt(d.due_date) + '</span>' : '&nbsp;';
     el.innerHTML =
       '<div class="dc-head"><div class="debt-name">' + esc(d.person_name) + '</div>' + bdg + '</div>'
       + '<div class="dc-row"><span class="dc-lbl">Total Tagihan</span><span class="dc-val">' + fRp(d.total_amount) + '</span></div>'
       + '<div class="dc-row"><span class="dc-lbl">Sisa</span><span class="dc-val" style="color:' + rc + '">' + fRp(d.remaining_amount) + '</span></div>'
       + ovRow
       + '<div class="dc-meta">'
-      + '<span class="dc-note"' + (d.notes ? '' : ' style="visibility:hidden"') + '>' + noteHtml + '</span>'
-      + '<span class="dc-due"' + (d.due_date ? '' : ' style="visibility:hidden"') + '>' + dueHtml + '</span>'
+      + '<span class="dc-note"' + (d.notes ? '' : ' style="visibility:hidden"') + '>' + (d.notes ? '📝 ' + esc(d.notes) : '&nbsp;') + '</span>'
+      + '<span class="dc-due"' + (d.due_date ? '' : ' style="visibility:hidden"') + '>' + (d.due_date ? '📅 <span class="' + (od ? 'ov' : 'ok') + '">' + fDt(d.due_date) + '</span>' : '&nbsp;') + '</span>'
       + '</div>'
       + '<div class="prog-wrap"><div class="prog-label"><span>Terbayar</span><span>' + p + '%</span></div>'
       + '<div class="prog-bg"><div class="prog-fill' + (isPaid ? ' done' : hasOv ? ' over' : '') + '" data-w="' + p + '" style="width:0%"></div></div></div>';
@@ -1182,7 +1220,6 @@ var _rafHandles = {};
 // [UI] Animate number count-up with rAF cubic-ease; cancels stale animation on same element
 function countUp(id, target, fmt) {
   var el = g(id); if (!el) return;
-  // [FIX] Cancel previous loop to prevent concurrent animations jittering the same element
   if (_rafHandles[id]) { cancelAnimationFrame(_rafHandles[id]); _rafHandles[id] = null; }
   var dur = 700, st = null;
   function tick(ts) {
@@ -1208,7 +1245,6 @@ D.dlist.addEventListener('click', function(e) {
 // [UX] Switch between active and archived tabs
 function switchTxTab(tab) {
   S.txTab = tab; S.txPg = 1;
-  // [FIX] Reset search state when switching tabs — stale query would filter wrong data
   S.q = ''; D.txsrch.value = ''; D.txclr.classList.remove('vis');
   if (D.tabActive) D.tabActive.classList.toggle('active', tab === 'active');
   if (D.tabArch)   D.tabArch.classList.toggle('active', tab === 'archived');
@@ -1228,7 +1264,6 @@ function loadTx() {
     D.txRat.textContent = isArch ? ('Diarsip: ' + existingData.length) : (sum.aktif + ' / ' + sum.lunas);
     S.filtered = existingData.slice(); S.txPg = 1; S.q = '';
     D.txsrch.value = ''; D.txclr.classList.remove('vis');
-    // [FIX] Render immediately — requestIdleCallback caused unpredictable delay on mobile
     renderTxPage();
     if (existingData.length) D.swh.style.display = 'flex';
     return;
@@ -1245,7 +1280,6 @@ function loadTx() {
     S.filtered = debts.slice(); S.txPg = 1; S.q = '';
     D.txsrch.value = ''; D.txclr.classList.remove('vis');
     if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
-    // [FIX] Render immediately — requestIdleCallback caused unpredictable delay on mobile
     renderTxPage();
     if (debts.length) D.swh.style.display = 'flex';
   }, function(e) {
@@ -1286,21 +1320,22 @@ function renderTxPage() {
              :             '<span class="tc-pill ba">Aktif</span>';
     var leftBtn, rightBtn;
     if (S.txTab === 'archived') {
-      leftBtn  = '<button class="sw-btn sw-edit" data-unarch="' + d.id + '"><span class="si">&#8617;&#65039;</span>Restore</button>';
-      rightBtn = '<button class="sw-btn sw-del" data-del="' + d.id + '"><span class="si">🗑️</span>Hapus</button>';
+      leftBtn  = '<button class="sw-btn sw-edit" data-unarch="' + esc(d.id) + '"><span class="si">&#8617;&#65039;</span>Restore</button>';
+      rightBtn = '<button class="sw-btn sw-del"  data-del="'   + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
     } else if (isPaid) {
-      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + d.id + '"><span class="si">✏️</span>Edit</button>';
-      rightBtn = '<button class="sw-btn sw-arch" data-arch="' + d.id + '"><span class="si">&#128450;&#65039;</span>Arsip</button>'
-               + '<button class="sw-btn sw-del" data-del="' + d.id + '"><span class="si">🗑️</span>Hapus</button>';
+      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">✏️</span>Edit</button>';
+      rightBtn = '<button class="sw-btn sw-arch" data-arch="' + esc(d.id) + '"><span class="si">&#128450;&#65039;</span>Arsip</button>'
+               + '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
     } else {
-      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + d.id + '"><span class="si">✏️</span>Edit</button>';
-      rightBtn = '<button class="sw-btn sw-del" data-del="' + d.id + '"><span class="si">🗑️</span>Hapus</button>';
+      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">✏️</span>Edit</button>';
+      rightBtn = '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
     }
+    // [FIX #8] All user-supplied data (person_name, notes, id) goes through esc() before innerHTML
     parts.push(
-      '<div class="sw-wrap" id="sw-' + d.id + '">'
+      '<div class="sw-wrap" id="sw-' + esc(d.id) + '">'
       + '<div class="sw-right">' + rightBtn + '</div>'
       + '<div class="sw-left">'  + leftBtn  + '</div>'
-      + '<div class="tx-card" id="tc-' + d.id + '" data-id="' + d.id + '">'
+      + '<div class="tx-card" id="tc-' + esc(d.id) + '" data-id="' + esc(d.id) + '">'
       + '<div class="tc-top"><div class="tc-av">' + esc(av) + '</div>'
       + '<div class="tc-info"><div class="tc-name">' + esc(d.person_name) + '</div>'
       + '<div class="tc-date">' + fDt(d.created_at) + (d.due_date ? ' · ' + fDt(d.due_date) : '') + '</div></div>'
@@ -1340,6 +1375,10 @@ function closeAllSwipes() {
   _openSwipe = null;
 }
 
+// [FIX #7] initSwipeGesture — stores listeners in a WeakMap keyed by card element; removes stale
+// listeners before attaching new ones to prevent accumulation across re-renders
+var _swipeListeners = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+
 // [UX] Attach touch-based swipe gesture — left reveals Arsip/Hapus, right reveals Edit/Restore
 function initSwipeGesture(id) {
   var wrap = g('sw-' + id);
@@ -1347,104 +1386,69 @@ function initSwipeGesture(id) {
   var card = wrap.querySelector('.tx-card');
   if (!card) return;
 
+  // [FIX #7] Remove stale listeners from previous render of this card element
+  if (_swipeListeners) {
+    var prev = _swipeListeners.get(card);
+    if (prev) {
+      card.removeEventListener('touchstart',  prev.start,  { passive: true });
+      card.removeEventListener('touchmove',   prev.move,   { passive: false });
+      card.removeEventListener('touchend',    prev.end,    { passive: true });
+      card.removeEventListener('touchcancel', prev.cancel, { passive: true });
+      card.removeEventListener('click',       prev.click);
+    }
+  }
+
   // [CONFIG] Pixel thresholds and limits
-  var SNAP_THRESHOLD = 50;   // px needed to commit a reveal
-  var LEFT_MAX       = 76;   // single right-button width (Hapus/Restore)
-  var LEFT_MAX2      = 152;  // double right-button width (Arsip + Hapus)
-  var RIGHT_MAX      = 76;   // single left-button width  (Edit)
-
-  // [PERF] Detect how wide the right panel actually is
-  function _rightW() {
-    var rp = wrap.querySelector('.sw-right');
-    return rp ? rp.scrollWidth : LEFT_MAX;
-  }
-  function _leftW() {
-    var lp = wrap.querySelector('.sw-left');
-    return lp ? lp.scrollWidth : RIGHT_MAX;
-  }
-
-  // [PERF] Cache panel widths once — scrollWidth is layout-triggering, must not be read per frame
-  var cachedRW = LEFT_MAX, cachedLW = RIGHT_MAX;
+  var SNAP_THRESHOLD = 50;
 
   var startX = 0, startY = 0, curX = 0, dragging = false, lockAxis = null;
+  var cachedRW = 76, cachedLW = 76;
 
-  card.addEventListener('touchstart', function(e) {
-    // [UX] Close other open swipes when starting a new gesture
+  function onStart(e) {
     if (_openSwipe && _openSwipe !== id) closeAllSwipes();
-    startX  = e.touches[0].clientX;
-    startY  = e.touches[0].clientY;
-    curX    = 0;
-    dragging  = true;
-    lockAxis  = null;
+    startX = e.touches[0].clientX; startY = e.touches[0].clientY;
+    curX = 0; dragging = true; lockAxis = null;
     card.classList.remove('settling');
-    // [FIX] Measure panel widths once here — not on every touchmove/touchend frame
-    var rp = wrap.querySelector('.sw-right');
-    var lp = wrap.querySelector('.sw-left');
-    cachedRW = rp ? rp.scrollWidth : LEFT_MAX;
-    cachedLW = lp ? lp.scrollWidth : RIGHT_MAX;
-  }, { passive: true });
-
-  card.addEventListener('touchmove', function(e) {
+    var rp = wrap.querySelector('.sw-right'), lp = wrap.querySelector('.sw-left');
+    cachedRW = rp ? rp.scrollWidth : 76;
+    cachedLW = lp ? lp.scrollWidth : 76;
+  }
+  function onMove(e) {
     if (!dragging) return;
     var dx = e.touches[0].clientX - startX;
     var dy = e.touches[0].clientY - startY;
-
-    // [UX] Lock axis on first significant movement to prevent diagonal conflicts
     if (!lockAxis) {
       if (Math.abs(dx) > Math.abs(dy) + 4) lockAxis = 'x';
       else if (Math.abs(dy) > Math.abs(dx) + 4) lockAxis = 'y';
       else return;
     }
-    if (lockAxis === 'y') return; // let page scroll handle it
-
-    e.preventDefault(); // prevent scroll while swiping horizontally
+    if (lockAxis === 'y') return;
+    e.preventDefault();
     curX = dx;
-
-    // [FIX] Use cached widths — avoids forced layout reflow on every touchmove frame
-    var rw = cachedRW, lw = cachedLW;
-    var tx;
-    if (dx < 0) {
-      // Swiping left → reveal right buttons (cap with rubber-band)
-      tx = Math.max(-rw - 20, dx);
-    } else {
-      // Swiping right → reveal left buttons (cap with rubber-band)
-      tx = Math.min(lw + 20, dx);
-    }
+    var tx = dx < 0 ? Math.max(-cachedRW - 20, dx) : Math.min(cachedLW + 20, dx);
     card.style.transform = 'translateX(' + tx + 'px)';
     wrap.classList.toggle('revealed', Math.abs(tx) > 10);
-  }, { passive: false });
-
-  card.addEventListener('touchend', function() {
+  }
+  function onEnd() {
     if (!dragging) return;
     dragging = false;
     if (lockAxis === 'y') return;
-
-    // [FIX] Use cached widths — avoids forced layout reflow on touchend
-    var rw = cachedRW, lw = cachedLW;
-    var dx = curX;
+    var rw = cachedRW, lw = cachedLW, dx = curX;
     card.classList.add('settling');
-
     if (dx < -SNAP_THRESHOLD) {
-      // Commit left-swipe → snap to reveal right panel
       card.style.transform = 'translateX(-' + rw + 'px)';
-      wrap.classList.add('revealed');
-      _openSwipe = id;
+      wrap.classList.add('revealed'); _openSwipe = id;
     } else if (dx > SNAP_THRESHOLD) {
-      // Commit right-swipe → snap to reveal left panel
       card.style.transform = 'translateX(' + lw + 'px)';
-      wrap.classList.add('revealed');
-      _openSwipe = id;
+      wrap.classList.add('revealed'); _openSwipe = id;
     } else {
-      // Not enough drag — snap back to center
       card.style.transform = 'translateX(0)';
       wrap.classList.remove('revealed');
       if (_openSwipe === id) _openSwipe = null;
     }
     setTimeout(function() { card.classList.remove('settling'); }, 260);
-  }, { passive: true });
-
-  // [FIX] Handle touchcancel (phone call, notification) — snap card back to prevent ghost state
-  card.addEventListener('touchcancel', function() {
+  }
+  function onCancel() {
     if (!dragging) return;
     dragging = false; lockAxis = null; curX = 0;
     card.classList.add('settling');
@@ -1452,15 +1456,21 @@ function initSwipeGesture(id) {
     wrap.classList.remove('revealed');
     if (_openSwipe === id) _openSwipe = null;
     setTimeout(function() { card.classList.remove('settling'); }, 260);
-  }, { passive: true });
+  }
+  function onClick(e) {
+    if (_openSwipe === id) { e.stopPropagation(); closeAllSwipes(); }
+  }
 
-  // [UX] Close swipe on simple tap anywhere on the card (when already open)
-  card.addEventListener('click', function(e) {
-    if (_openSwipe === id) {
-      e.stopPropagation();
-      closeAllSwipes();
-    }
-  });
+  card.addEventListener('touchstart',  onStart,  { passive: true });
+  card.addEventListener('touchmove',   onMove,   { passive: false });
+  card.addEventListener('touchend',    onEnd,    { passive: true });
+  card.addEventListener('touchcancel', onCancel, { passive: true });
+  card.addEventListener('click',       onClick);
+
+  // [FIX #7] Store references so they can be removed on next render cycle
+  if (_swipeListeners) {
+    _swipeListeners.set(card, { start:onStart, move:onMove, end:onEnd, cancel:onCancel, click:onClick });
+  }
 }
 
 // [EVENT] Delegated click handler for tx list — delete, edit, archive, open
@@ -1477,14 +1487,20 @@ D.txl.addEventListener('click', function(e) {
   if (card && card.dataset.id) openDet(card.dataset.id);
 });
 
-// [EVENT] Pagination — prev
+// [EVENT] Pagination — prev (scroll up with animation, then render new page)
 D.txprev.addEventListener('click', function() {
-  if (S.txPg > 1) { S.txPg--; renderTxPage(); window.scrollTo({ top:0, behavior:'smooth' }); }
+  if (S.txPg > 1) {
+    S.txPg--;
+    _scrollTop(null, function() { renderTxPage(); });
+  }
 });
-// [EVENT] Pagination — next
+// [EVENT] Pagination — next (scroll up with animation, then render new page)
 D.txnext.addEventListener('click', function() {
   var tp = Math.max(1, Math.ceil(S.filtered.length / S.txPer));
-  if (S.txPg < tp) { S.txPg++; renderTxPage(); window.scrollTo({ top:0, behavior:'smooth' }); }
+  if (S.txPg < tp) {
+    S.txPg++;
+    _scrollTop(null, function() { renderTxPage(); });
+  }
 });
 
 // [UX] Debounced search — filters in-memory debt state
@@ -1515,10 +1531,9 @@ D.txclr.addEventListener('click', function() {
 // [EVENT] Open delete confirmation dialog
 function handleSwipeDelete(id) {
   closeAllSwipes();
-  // [FIX] Search both active and archived — delete works from either tab
   var d = S.debts.find(function(x) { return x.id === id; })
        || S.archivedDebts.find(function(x) { return x.id === id; });
-  g('del-name-lbl').textContent = '"' + esc(d ? d.person_name : 'transaksi ini') + '"';
+  g('del-name-lbl').textContent = '"' + (d ? d.person_name : 'transaksi ini') + '"';
   S.pendingDel = id;
   g('confirm-del').classList.add('open');
 }
@@ -1526,7 +1541,6 @@ function handleSwipeDelete(id) {
 // [EVENT] Open edit modal pre-filled with debt data
 function handleSwipeEdit(id) {
   closeAllSwipes();
-  // [FIX] Search both active and archived — edit can be triggered from either tab
   var d = S.debts.find(function(x) { return x.id === id; })
        || S.archivedDebts.find(function(x) { return x.id === id; });
   if (!d) { showToast('Data tidak ditemukan', 'e'); return; }
@@ -1535,7 +1549,6 @@ function handleSwipeEdit(id) {
   setCI('edit-prin', d.principal_amount || 0);
   setCI('edit-int',  d.interest_amount  || 0);
   g('edit-due').value   = d.due_date || '';
-  // [FIX] Sync both class and data-empty attribute for placeholder visibility
   var _edph = document.getElementById('edit-due-ph');
   var _edDueEl = document.getElementById('edit-due');
   if (_edph)    _edph.classList.toggle('hidden', !!d.due_date);
@@ -1551,6 +1564,7 @@ function handleSwipeArchive(id) {
   var d = S.debts.find(function(x) { return x.id === id; });
   if (!d) { showToast('Data tidak ditemukan', 'e'); return; }
   if (d.status !== 'paid') { showToast('Hanya transaksi lunas yang bisa di-archive', 'e'); return; }
+  // [FIX #8] Use textContent (not innerHTML) for user-supplied name in confirm dialog
   document.getElementById('arch-name-lbl').textContent = '"' + d.person_name + '"';
   S.pendingArch = { id:id };
   document.getElementById('confirm-arch').classList.add('open');
@@ -1586,13 +1600,9 @@ function doUnarchive(id) {
 
 // [STATE] Optimistic remove — clear card from DOM and state arrays
 function optimisticRemove(id) {
-  // [FIX] Target sw-wrap by ID directly, no need for closest()
   var swWrap = g('sw-' + id);
   if (swWrap) { swWrap.remove(); }
-  else {
-    var txCard = g('tc-' + id);
-    if (txCard) txCard.remove();
-  }
+  else { var txCard = g('tc-' + id); if (txCard) txCard.remove(); }
   var dCard = D.dlist.querySelector('[data-id="' + id + '"]');
   if (dCard) dCard.classList.add('removing');
 }
@@ -1603,7 +1613,6 @@ function optimisticUpdateLocal(debt) {
   if (idx >= 0) {
     S.debts[idx] = debt;
   } else {
-    // [FIX] Also check archived array — edit can be triggered from archived tab
     var aidx = S.archivedDebts.findIndex(function(x) { return x.id === debt.id; });
     if (aidx >= 0) S.archivedDebts[aidx] = debt;
   }
@@ -1682,7 +1691,6 @@ g('btn-create').addEventListener('click', function() {
       S.filtered = S.q ? S.filtered : S.debts.slice();
       g('inp-name').value = ''; resetCI('inp-prin'); resetCI('inp-int');
       g('inp-due').value = '';
-      // [FIX] Reset due-ph placeholder visibility after form clear
       var _cph = document.getElementById('due-ph');
       if (_cph) { _cph.classList.remove('hidden'); }
       var _cdueEl = document.getElementById('inp-due');
@@ -1716,7 +1724,6 @@ g('btn-edit-save').addEventListener('click', function() {
   var btn = this;
   btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
 
-  // [FIX] Search both arrays — edit can originate from archived tab or detail page
   var prev = S.debts.find(function(x) { return x.id === id; })
           || S.archivedDebts.find(function(x) { return x.id === id; });
   var snapshot = prev ? JSON.parse(JSON.stringify(prev)) : null;
@@ -1731,7 +1738,6 @@ g('btn-edit-save').addEventListener('click', function() {
     optimisticUpdateLocal(opt);
     if (S.page === 'transactions') renderTxPage();
     if (S.page === 'dashboard')   renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
-    // [FIX] Also update detail page if user edits from there
     if (S.page === 'detail' && S.selId === id) renderDetail(id);
   }
 
@@ -1740,7 +1746,6 @@ g('btn-edit-save').addEventListener('click', function() {
       btn.textContent = 'Simpan Perubahan'; btn.disabled = false;
       closeM('modal-edit');
       showToast('✅ Data berhasil diperbarui!', 's');
-      // [FIX] Removed redundant pre-call optimisticUpdateLocal — sync server-confirmed data back only
       optimisticUpdateLocal(res.data);
       S._cache.ts = 0;
       if (S.page === 'transactions') renderTxPage();
@@ -1778,7 +1783,6 @@ document.getElementById('arch-confirm').addEventListener('click', function() {
   renderTxPage();
   call({ action:'archiveDebt', id:id },
     function() {
-      // [FIX] Button label in Indonesian, consistent with app language
       btn.textContent = 'Arsipkan'; btn.disabled = false;
       document.getElementById('confirm-arch').classList.remove('open'); S.pendingArch = null;
       showToast('🗂️ Transaksi berhasil diarsip', 's');
@@ -1788,7 +1792,6 @@ document.getElementById('arch-confirm').addEventListener('click', function() {
       if (S.selId === id) renderDetail(id);
     },
     function(e) {
-      // [FIX] Button label in Indonesian
       btn.textContent = 'Arsipkan'; btn.disabled = false;
       showToast('Gagal: ' + e, 'e');
       S.debts = snapD; S.archivedDebts = snapA;
@@ -1809,11 +1812,9 @@ g('del-confirm').addEventListener('click', function() {
   var btn = this;
   btn.innerHTML = '<div class="loader"></div> Menghapus…'; btn.disabled = true;
 
-  // [FIX] Snapshot both arrays for full rollback
   var snapshotDebts = JSON.parse(JSON.stringify(S.debts));
   var snapshotArch  = JSON.parse(JSON.stringify(S.archivedDebts));
   optimisticRemove(id);
-  // [FIX] Remove from whichever array holds the debt (active or archived)
   S.debts         = S.debts.filter(function(x) { return x.id !== id; });
   S.archivedDebts = S.archivedDebts.filter(function(x) { return x.id !== id; });
   S.filtered      = S.filtered.filter(function(x) { return x.id !== id; });
@@ -1844,7 +1845,6 @@ g('del-confirm').addEventListener('click', function() {
     function(e) {
       btn.textContent = 'Hapus Sekarang'; btn.disabled = false;
       showToast('Gagal menghapus: ' + e, 'e');
-      // [FIX] Restore both arrays on failure
       S.debts = snapshotDebts;
       S.archivedDebts = snapshotArch;
       var src = S.txTab === 'archived' ? S.archivedDebts : S.debts;
@@ -1866,7 +1866,6 @@ g('btn-pay-x').addEventListener('click', function() { closeM('modal-pay'); });
 
 // [UI] Open payment modal with debt context
 function openPay(debtId, remaining) {
-  // [FIX] Search both arrays — pay button may be triggered from either tab
   var d = S.debts.find(function(x) { return x.id === debtId; })
        || S.archivedDebts.find(function(x) { return x.id === debtId; });
   g('pay-id').value            = debtId;
@@ -1922,18 +1921,19 @@ var _detailGen = 0;
 // [UI] Fetch and render full debt detail with timeline
 function renderDetail(id) {
   var el = D.det;
-  // [FIX] Bump generation so any in-flight rAF tick() from prior call self-terminates
   var myGen = ++_detailGen;
-  // [FIX] Reset scroll position when detail content is refreshed (e.g. after payment)
-  window.scrollTo({ top: 0, behavior: 'instant' });
+  _scrollTop();
   el.innerHTML = '<div>'
     + '<div class="sk" style="height:20px;width:90px;border-radius:99px;margin-bottom:18px"></div>'
     + '<div class="sk sk-dh"></div>'
     + '<div class="sk-dgrid"><div class="sk sk-dcell"></div><div class="sk sk-dcell"></div><div class="sk sk-dcell"></div><div class="sk sk-dcell"></div></div>'
     + '<div class="sk sk-dbar"></div><div class="sk sk-dbar"></div><div class="sk sk-dtl"></div></div>';
 
+  // [FIX #7] Detail page uses innerHTML but its event listeners attach after fresh render — no leak because
+  // the old DOM is replaced entirely; new listeners attach only to freshly inserted elements via delegation below
   call({ action:'getDebts', id:id },
     function(res) {
+      if (myGen !== _detailGen) return;
       var d = res.data || {}, insts = res.installments || [];
       var isPaid = d.status === 'paid', od = !isPaid && isOD(d.due_date);
       var isArch = !!d.archived;
@@ -1947,6 +1947,8 @@ function renderDetail(id) {
       var bdg    = isPaid ? '<span class="debt-badge bp">✓ Lunas</span>'
                  : od    ? '<span class="debt-badge bo">⚠ Lewat</span>'
                  :         '<span class="debt-badge ba">Aktif</span>';
+
+      // [FIX #8] All user data escaped; id is an internal generated value but still escaped defensively
       var h = '<div>';
       h += '<button class="back-btn" id="det-back">← Kembali</button>';
       h += '<div class="det-hero"><div class="dh-top">';
@@ -1956,8 +1958,8 @@ function renderDetail(id) {
       h += '<div class="dh-meta">' + bdg + (isArch ? '<span class="arch-badge" style="margin-left:4px">&#128450;&#65039; Arsip</span>' : '') + (d.due_date ? '<span class="due-chip">Tempo: <span class="' + (od ? 'ov' : 'ok') + '">' + fDt(d.due_date) + '</span></span>' : '') + '</div></div></div>';
       h += '<div class="ring-wrap"><svg class="ring-svg" width="64" height="64" viewBox="0 0 64 64">';
       h += '<circle class="ring-track" cx="32" cy="32" r="27"/>';
-      h += '<circle class="ring-fill ' + rCls + '" id="rf-' + id + '" cx="32" cy="32" r="27" stroke-dashoffset="188.5"/>';
-      h += '</svg><div class="ring-pct" id="rp-' + id + '">0%</div></div>';
+      h += '<circle class="ring-fill ' + rCls + '" id="rf-' + esc(id) + '" cx="32" cy="32" r="27" stroke-dashoffset="188.5"/>';
+      h += '</svg><div class="ring-pct" id="rp-' + esc(id) + '">0%</div></div>';
       h += '</div>';
       h += '<div style="margin-top:6px"><div style="font-size:11px;color:rgba(241,245,249,.5);letter-spacing:.8px;text-transform:uppercase;margin-bottom:4px">Sisa Tagihan</div>';
       h += '<div style="font-family:\'Sora\',sans-serif;font-size:26px;font-weight:700;background:linear-gradient(90deg,#fff 30%,var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.5px">' + fRp(rem) + '</div></div>';
@@ -1967,7 +1969,7 @@ function renderDetail(id) {
         h += '<div class="det-arch-icon">&#128450;&#65039;</div>';
         h += '<div class="det-arch-body"><div class="det-arch-label">Transaksi Diarsip</div>';
         h += '<div class="det-arch-note">Data tetap aman dan tidak dihitung di dashboard. Klik Restore untuk mengaktifkan kembali.</div></div>';
-        h += '<button class="det-arch-btn" id="det-unarch-btn" data-id="' + d.id + '">Restore</button>';
+        h += '<button class="det-arch-btn" id="det-unarch-btn" data-id="' + esc(d.id) + '">Restore</button>';
         h += '</div>';
       }
       if (d.notes) {
@@ -1988,19 +1990,19 @@ function renderDetail(id) {
       h += '<div class="bkd-item bi-si"><div class="bkd-label">⏳ Sisa</div><div class="bkd-val" style="color:' + (isPaid ? 'var(--success)' : od ? 'var(--danger)' : 'var(--warn)') + '">' + fRp(rem) + '</div><div class="bkd-sub">' + (isPaid ? 'Selesai ✓' : insts.length + ' pembayaran') + '</div></div>';
       h += '</div>';
       h += '<div class="sb-wrap"><div class="sb-head"><span>Komposisi Pinjaman</span><span>' + fRp(tot) + '</span></div>';
-      h += '<div class="sb-bg"><div class="sb-pri" id="sbp-' + id + '" style="width:0%"></div><div class="sb-int" id="sbi-' + id + '" style="width:0%"></div></div>';
+      h += '<div class="sb-bg"><div class="sb-pri" id="sbp-' + esc(id) + '" style="width:0%"></div><div class="sb-int" id="sbi-' + esc(id) + '" style="width:0%"></div></div>';
       h += '<div class="sb-leg"><div class="leg lp">Pokok ' + priPct + '%</div><div class="leg li">Bunga ' + intPct + '%</div></div></div>';
       h += '<div class="mp-wrap"><div class="mp-head"><div class="mp-title">Progress Pelunasan</div>';
-      h += '<div class="mp-pct' + (isPaid ? ' done' : '') + '" id="mpc-' + id + '">0%</div></div>';
-      h += '<div class="mp-bg"><div class="mp-track' + (isPaid ? ' done' : '') + '" id="mpt-' + id + '" style="width:0%"></div></div>';
+      h += '<div class="mp-pct' + (isPaid ? ' done' : '') + '" id="mpc-' + esc(id) + '">0%</div></div>';
+      h += '<div class="mp-bg"><div class="mp-track' + (isPaid ? ' done' : '') + '" id="mpt-' + esc(id) + '" style="width:0%"></div></div>';
       h += '<div class="mp-sub"><span>Terbayar: <span style="color:var(--success)">' + fRp(paid) + '</span></span><span>Total: <span>' + fRp(tot) + '</span></span></div></div>';
       if (!isPaid && !isArch) {
-        h += '<button class="pay-btn" onclick="openPay(\'' + d.id + '\',' + rem + ')"><span style="font-size:20px">💳</span> Bayar Cicilan</button>';
+        h += '<button class="pay-btn" id="det-pay-btn">💳 Bayar Cicilan</button>';
       } else if (isPaid && !isArch) {
         h += '<div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:var(--rs);padding:14px 16px;margin-bottom:14px;text-align:center">';
         h += '<div style="font-size:24px;margin-bottom:4px">🎉</div><div style="font-family:\'Sora\',sans-serif;font-weight:700;color:var(--success)">Pinjaman Lunas!</div>';
         h += '<div style="font-size:12px;color:var(--muted);margin-top:2px">Semua cicilan telah dibayar</div></div>';
-        h += '<button class="arch-action-btn do-archive" id="det-arch-btn" data-id="' + d.id + '">&#128450;&#65039; Arsipkan Transaksi Ini</button>';
+        h += '<button class="arch-action-btn do-archive" id="det-arch-btn" data-id="' + esc(d.id) + '">&#128450;&#65039; Arsipkan Transaksi Ini</button>';
       }
       h += '<div class="section-title"><span>Timeline Pembayaran</span><span class="count-badge">' + insts.length + '</span></div>';
       h += '<div class="tl-wrap">';
@@ -2010,16 +2012,16 @@ function renderDetail(id) {
         var sorted = insts.slice().sort(function(a, b) { return new Date(a.payment_date) - new Date(b.payment_date); });
         var runIP = 0;
         for (var ti = 0; ti < sorted.length; ti++) {
-          var inst = sorted[ti], idx2 = ti;
-          var amt = +inst.payment_amount || 0, isLast = idx2 === sorted.length - 1;
+          var inst = sorted[ti];
+          var amt = +inst.payment_amount || 0, isLast = ti === sorted.length - 1;
           var iAlloc = Math.min(amt, Math.max(0, ir - runIP)), pAlloc = amt - iAlloc;
           runIP += iAlloc;
           var dotCls = (isLast && !isPaid) ? 'tl-dot cur' : 'tl-dot pd';
           var dotIco = (isLast && !isPaid) ? '⏰' : '✅';
           h += '<div class="tl-item"><div class="tl-left"><div class="' + dotCls + '">' + dotIco + '</div>';
           h += '<div class="tl-line' + (isLast ? ' last' : '') + '"></div></div>';
-          h += '<div class="tl-body' + (idx2 === 0 ? ' first' : '') + '">';
-          h += '<div class="tl-meta"><div class="tl-title">Pembayaran ke-' + (idx2 + 1) + '</div><div class="tl-amount">' + fRp(amt) + '</div></div>';
+          h += '<div class="tl-body' + (ti === 0 ? ' first' : '') + '">';
+          h += '<div class="tl-meta"><div class="tl-title">Pembayaran ke-' + (ti + 1) + '</div><div class="tl-amount">' + fRp(amt) + '</div></div>';
           h += '<div class="tl-date">' + fDt(inst.payment_date) + '</div>';
           h += '<div class="tl-alloc">';
           if (iAlloc > 0) h += '<span class="at at-i">Bunga: ' + fRp(iAlloc) + '</span>';
@@ -2034,8 +2036,8 @@ function renderDetail(id) {
       h += '</div></div>';
       el.innerHTML = h;
 
+      // [FIX #7] Attach detail page listeners AFTER innerHTML replacement — fresh elements, no stale listeners
       requestAnimationFrame(function() {
-        // [FIX] Bail if a newer renderDetail call has already replaced this DOM
         if (myGen !== _detailGen) return;
 
         var rf = g('rf-' + id);
@@ -2051,7 +2053,6 @@ function renderDetail(id) {
           setTimeout(function() {
             if (myGen !== _detailGen) return;
             requestAnimationFrame(function tick(ts) {
-              // [FIX] Stop tick loop if DOM has been replaced by a newer renderDetail
               if (myGen !== _detailGen) return;
               if (!st) st = ts;
               var e = Math.min(ts - st, dur), ease = 1 - Math.pow(1 - e / dur, 3);
@@ -2075,18 +2076,22 @@ function renderDetail(id) {
           if (myGen !== _detailGen) return;
           sbp.style.width = priPct + '%'; sbi.style.width = intPct + '%';
         }, 150);
+
+        // [FIX #7] Attach once to freshly rendered elements — no accumulation possible
         var bb = g('det-back');
-        // [FIX] Return to previous page (transactions or dashboard), not always dashboard
         if (bb) bb.addEventListener('click', function() { goPage(S.prevPage || 'dashboard'); });
         var _dab = document.getElementById('det-arch-btn');
         if (_dab) _dab.addEventListener('click', function() { handleSwipeArchive(this.dataset.id); });
         var _dub = document.getElementById('det-unarch-btn');
         if (_dub) _dub.addEventListener('click', function() { doUnarchive(this.dataset.id); });
+        var _dpb = document.getElementById('det-pay-btn');
+        if (_dpb) _dpb.addEventListener('click', function() { openPay(d.id, rem); });
       });
     },
     function(e) {
+      if (myGen !== _detailGen) return;
       el.innerHTML = '<div class="error-state"><div class="ic">⚠️</div><p>' + esc(e) + '</p>'
-        + '<button class="error-retry" onclick="renderDetail(\'' + id + '\')">Coba Lagi</button></div>';
+        + '<button class="error-retry" onclick="renderDetail(\'' + esc(id) + '\')">Coba Lagi</button></div>';
     }
   );
 }
@@ -2148,10 +2153,25 @@ g('inp-paydate').value = _todayInputVal();
 })();
 initPullToRefresh();
 
+// [FIX #9] Offline detection — show/hide banner and reflect in health dot
+(function() {
+  var banner = document.getElementById('offline-banner');
+  function update() {
+    if (!banner) return;
+    var offline = !navigator.onLine;
+    banner.classList.toggle('show', offline);
+    var dot = g('health-dot');
+    if (dot && offline) { dot.className = 'health-dot err'; dot.title = 'Tidak ada koneksi internet'; }
+  }
+  window.addEventListener('online',  update);
+  window.addEventListener('offline', update);
+  update();
+})();
+
 // [API] Run health check on startup
 (function runHealthCheck() {
   var dot = g('health-dot');
-  if (dot) { dot.className = 'health-dot chk'; dot.title = 'Memeriksa koneksi…'; }
+  if (dot && navigator.onLine !== false) { dot.className = 'health-dot chk'; dot.title = 'Memeriksa koneksi…'; }
   call({ action:'healthCheck' },
     function(r) {
       if (dot) { dot.className = 'health-dot ok'; dot.title = 'Terhubung · ' + (r.spreadsheet || 'OK') + ' · ' + (r.now || ''); }
