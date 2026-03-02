@@ -1,5 +1,5 @@
 /**
- * Lunasin v1.2.0 | © 2026 Bayu Wicaksono
+ * Lunasin v1.3.0 | © 2026 Bayu Wicaksono
  */
 
 // [CONFIG] Sheet names, cache key, and lock timeout
@@ -36,8 +36,8 @@ var RATE_LIMIT_WIN = 60;
 // [SECURITY] Enforce per-user rate limit via ScriptProperties; throw if exceeded
 function _checkRateLimit() {
   try {
-    var user = Session.getEffectiveUser().getEmail() || 'anonymous';
-    var key  = 'rl_' + user.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+    var user  = Session.getEffectiveUser().getEmail() || 'anonymous';
+    var key   = 'rl_' + user.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
     var props = PropertiesService.getScriptProperties();
     var raw   = props.getProperty(key);
     var now   = Math.floor(Date.now() / 1000);
@@ -50,7 +50,7 @@ function _checkRateLimit() {
     }
     props.setProperty(key, JSON.stringify(data));
   } catch(e) {
-    if (e.message && e.message.indexOf('Terlalu banyak') === 0) throw e; // re-throw rate errors; swallow infra errors
+    if (e.message && e.message.indexOf('Terlalu banyak') === 0) throw e;
     logWarn('_checkRateLimit infra error: ' + e.message);
   }
 }
@@ -320,12 +320,12 @@ function defSummary() {
 function getDebts(params) {
   try {
     if(params.id) return _getSingle(sStr(String(params.id),50));
-    var page        = Math.max(1,parseInt(params.page, 10)||1);
-    var limit       = Math.min(200,Math.max(1,parseInt(params.limit,10)||100));
-    var q           = sStr(params.q||'',100).toLowerCase();
-    var onlyArch    = params.onlyArchived  === true || params.onlyArchived  === 'true';
-    var inclArch    = params.includeArchived === true || params.includeArchived === 'true';
-    if(!q && !onlyArch){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } } // cache only for unfiltered non-archived requests
+    var page     = Math.max(1,parseInt(params.page, 10)||1);
+    var limit    = Math.min(200,Math.max(1,parseInt(params.limit,10)||100));
+    var q        = sStr(params.q||'',100).toLowerCase();
+    var onlyArch = params.onlyArchived   === true || params.onlyArchived   === 'true';
+    var inclArch = params.includeArchived === true || params.includeArchived === 'true';
+    if(!q && !onlyArch){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } }
     var sh=getOrCreateSheet(SHEET_DEBTS), lr=sh.getLastRow();
     if(lr<=1) return {success:true,data:[],total:0,page:page,limit:limit,summary:defSummary()};
     var raw=sh.getRange(1,1,lr,sh.getLastColumn()).getValues();
@@ -350,7 +350,7 @@ function _page(all,page,limit,q,onlyArch,inclArch) {
   list = list.slice().sort(function(a, b) { return (b._rowIdx || 0) - (a._rowIdx || 0); });
   var total=list.length, start=(page-1)*limit;
   var slice=list.slice(start,start+limit);
-  var activeSrc = all.filter(function(d){ return !d.archived; }); // summary totals from all active, not search slice
+  var activeSrc = all.filter(function(d){ return !d.archived; });
   var s = defSummary();
   s.archived = all.filter(function(d){ return !!d.archived; }).length;
   activeSrc.forEach(function(d){
@@ -457,7 +457,6 @@ function deleteDebt(params) {
     var id=sStr(String(params.id),50);
     var dsh=getOrCreateSheet(SHEET_DEBTS), dlr=dsh.getLastRow();
     if(dlr<=1) throw new Error('Debt tidak ditemukan: '+id);
-    var nc=dsh.getLastColumn();
     var idcol=dsh.getRange(1,1,dlr,1).getValues(); var rowNum=-1;
     for(var r=idcol.length-1;r>=1;r--){if(String(idcol[r][0])===id){rowNum=r+1;break;}}
     if(rowNum===-1) throw new Error('Debt tidak ditemukan: '+id);
@@ -484,8 +483,8 @@ function addPayment(params) {
     var debtId=sStr(params.debt_id,50);
     var amount=sRp(params.payment_amount);
     var date  =sDate(params.payment_date)||todayWIB();
-    if(!debtId)     throw new Error('debt_id diperlukan');
-    if(amount<=0)   throw new Error('Jumlah pembayaran harus lebih dari 0');
+    if(!debtId)   throw new Error('debt_id diperlukan');
+    if(amount<=0) throw new Error('Jumlah pembayaran harus lebih dari 0');
     var dsh=getOrCreateSheet(SHEET_DEBTS), dlr=dsh.getLastRow();
     if(dlr<=1) throw new Error('Debt tidak ditemukan: '+debtId);
     var idcol=dsh.getRange(1,1,dlr,1).getValues(); var found=false;
@@ -516,13 +515,14 @@ function addPayment(params) {
   } finally{ releaseLock(lock); }
 }
 
-// [CALC] Sum installments for a debt and write updated fields to sheet
+// [CALC] Sum all installments for a debt and write updated fields back to sheet
 function _recalc(debtId,dsh) {
   debtId=sStr(String(debtId),50);
   try {
     var ish=getOrCreateSheet(SHEET_INST), ilr=ish.getLastRow(), totalPaid=0;
     if(ilr>1){
-      var iraw=ish.getRange(1,1,ilr,3).getValues();
+      var ncInst=ish.getLastColumn();
+      var iraw=ish.getRange(1,1,ilr,ncInst).getValues();
       for(var i=1;i<iraw.length;i++){
         if(String(iraw[i][IC.debt_id])===debtId)
           totalPaid+=Math.max(0,Math.floor(+iraw[i][IC.payment_amount]||0));
