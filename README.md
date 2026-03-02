@@ -107,7 +107,7 @@ Jalankan fungsi `initApp()` untuk membuat sheet otomatis:
 1. Klik **Deploy → New deployment**
 2. Pilih tipe: **Web app**
 3. Isi konfigurasi:
-   - **Description**: `Lunasin v1.2.0`
+   - **Description**: `Lunasin vX.X.X` *(sesuaikan versinya)*
    - **Execute as**: `Me`
    - **Who has access**: `Only myself` *(atau sesuaikan)*
 4. Klik **Deploy**
