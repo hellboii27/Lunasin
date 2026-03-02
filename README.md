@@ -11,7 +11,7 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 
 ## 📸 Preview
 
-### 📱 Aplication
+### 📱 Application
 
 ![Preview](screenshots/Screenshot_1.png)   ![Preview](screenshots/Screenshot_2.png)
 ![Preview](screenshots/Screenshot_3.png)   ![Preview](screenshots/Screenshot_4.png)
@@ -54,8 +54,10 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 
 ```
 lunasin/
-├── Code.gs       # Backend — semua logika server (API handler, CRUD, validasi)
-└── Index.html    # Frontend — SPA mobile-first (UI, state, animasi)
+├── Code.gs       # Backend — API handler, CRUD, validasi, rate limiting
+├── Index.html    # Entry point — HTML struktur + font preload + GAS includes
+├── Styles.html   # Semua CSS — design tokens, komponen, animasi
+└── Script.html   # Semua JS — state, UI, event handler, demo mode
 ```
 
 ---
@@ -78,12 +80,21 @@ Klik menu **Extensions → Apps Script**.
 
 **3. Salin kode**
 
-- Hapus isi default `Code.gs`, ganti dengan isi file `Code.gs` dari repo ini.
-- Klik tombol `+` di panel kiri → pilih **HTML** → beri nama `Index` → salin isi file `Index.html`.
+Di panel kiri editor, buat **4 file** berikut:
+
+| File | Cara membuat | Isi dengan |
+|---|---|---|
+| `Code.gs` | Sudah ada secara default | Isi file `Code.gs` dari repo ini |
+| `Index.html` | Klik `+` → pilih **HTML** → beri nama `Index` | Isi file `Index.html` |
+| `Styles.html` | Klik `+` → pilih **HTML** → beri nama `Styles` | Isi file `Styles.html` |
+| `Script.html` | Klik `+` → pilih **HTML** → beri nama `Script` | Isi file `Script.html` |
+
+> ⚠️ Nama file harus **persis sama** (case-sensitive). `Index.html` memanggil `Styles` dan `Script` via `include()` — salah nama menyebabkan error deploy.
 
 **4. Inisialisasi database**
 
-Di editor Apps Script, jalankan fungsi `initApp()`:
+Jalankan fungsi `initApp()` untuk membuat sheet otomatis:
+
 1. Pilih fungsi `initApp` dari dropdown di toolbar
 2. Klik **Run ▶**
 3. Izinkan akses Google Sheets saat diminta (popup OAuth)
@@ -96,7 +107,7 @@ Di editor Apps Script, jalankan fungsi `initApp()`:
 1. Klik **Deploy → New deployment**
 2. Pilih tipe: **Web app**
 3. Isi konfigurasi:
-   - **Description**: `Lunasin v1.0.0`
+   - **Description**: `Lunasin v1.2.0`
    - **Execute as**: `Me`
    - **Who has access**: `Only myself` *(atau sesuaikan)*
 4. Klik **Deploy**
@@ -223,20 +234,23 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 Konstanta di `Code.gs` yang bisa disesuaikan:
 
 ```javascript
-var CACHE_TTL  = 300;        // Cache TTL dalam detik (default: 5 menit)
-var LOCK_MS    = 12000;      // Lock timeout untuk write operations (ms)
-var SHEET_DEBTS = 'debts';   // Nama sheet utang
-var SHEET_INST  = 'installments'; // Nama sheet cicilan
+var CACHE_TTL      = 300;  // Cache TTL dalam detik (default: 5 menit)
+var LOCK_MS        = 6000; // Lock timeout untuk write operations (ms)
+var RATE_LIMIT_MAX = 30;   // Maks request per user per window
+var RATE_LIMIT_WIN = 60;   // Rolling window rate limit (detik)
+var SHEET_DEBTS    = 'debts';         // Nama sheet utang
+var SHEET_INST     = 'installments';  // Nama sheet cicilan
 ```
 
 ---
 
 ## 🔒 Keamanan
 
-- Semua input di-sanitasi di backend (`sStr`, `sName`) dan frontend sebelum dikirim ke Sheets
+- Semua input di-sanitasi di backend (`sStr`, `sName`, `sNotes`) dan frontend sebelum dikirim ke Sheets
 - Script tag dan atribut event handler di-strip dari semua input
 - Lock service digunakan untuk mencegah race condition pada write operations
 - Cache di-invalidate setiap kali ada perubahan data
+- Rate limiting per user (30 req/menit) mencegah abuse pada URL publik
 
 ---
 
