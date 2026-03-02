@@ -1,5 +1,5 @@
 /**
- * Lunasin v1.1.0 | © 2026 Bayu Wicaksono
+ * Lunasin v1.2.0 | © 2026 Bayu Wicaksono
  */
 
 // [CONFIG] Sheet names, cache key, and lock timeout
@@ -7,7 +7,7 @@ var SHEET_DEBTS = 'debts';
 var SHEET_INST  = 'installments';
 var CACHE_KEY   = 'lunasin_debts_v5';
 var CACHE_TTL   = 300;
-var LOCK_MS     = 12000;
+var LOCK_MS     = 6000;
 
 // [CONFIG] Column index map for debts sheet
 var DC = {
@@ -29,7 +29,33 @@ var INST_HEADERS = ['id','debt_id','payment_amount','payment_date','created_at']
 // [CONFIG] ScriptProperties keys for ID counters
 var _P_DEBT = 'lunasin_ctr_debt', _P_INST = 'lunasin_ctr_inst';
 
-// [FIX #1] Lazy-init TZ — avoids slow SpreadsheetApp call at global scope on every request
+// [CONFIG] Rate limit — max requests per user per rolling window
+var RATE_LIMIT_MAX = 30;
+var RATE_LIMIT_WIN = 60;
+
+// [SECURITY] Enforce per-user rate limit via ScriptProperties; throw if exceeded
+function _checkRateLimit() {
+  try {
+    var user = Session.getEffectiveUser().getEmail() || 'anonymous';
+    var key  = 'rl_' + user.replace(/[^a-z0-9]/gi, '_').slice(0, 40);
+    var props = PropertiesService.getScriptProperties();
+    var raw   = props.getProperty(key);
+    var now   = Math.floor(Date.now() / 1000);
+    var data  = raw ? JSON.parse(raw) : { count: 0, reset: now + RATE_LIMIT_WIN };
+    if (now > data.reset) { data = { count: 0, reset: now + RATE_LIMIT_WIN }; }
+    data.count++;
+    if (data.count > RATE_LIMIT_MAX) {
+      var wait = data.reset - now;
+      throw new Error('Terlalu banyak permintaan. Coba lagi dalam ' + wait + ' detik.');
+    }
+    props.setProperty(key, JSON.stringify(data));
+  } catch(e) {
+    if (e.message && e.message.indexOf('Terlalu banyak') === 0) throw e; // re-throw rate errors; swallow infra errors
+    logWarn('_checkRateLimit infra error: ' + e.message);
+  }
+}
+
+// [UTIL] Lazy-init TZ — caches spreadsheet timezone, avoids global SpreadsheetApp call
 var _TZ = null;
 function _getTZ() {
   if (_TZ) return _TZ;
@@ -49,9 +75,15 @@ function doGet() {
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+// [UTIL] GAS template include helper — enables <?!= include() ?> partials in Index.html
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename).getContent();
+}
+
 // [API] Route action string to handler function
 function processRequest(jsonStr) {
   try {
+    _checkRateLimit();
     var params = JSON.parse(jsonStr);
     var action = sStr(params.action, 50);
     logInfo('ACTION ' + action);
@@ -293,15 +325,13 @@ function getDebts(params) {
     var q           = sStr(params.q||'',100).toLowerCase();
     var onlyArch    = params.onlyArchived  === true || params.onlyArchived  === 'true';
     var inclArch    = params.includeArchived === true || params.includeArchived === 'true';
-    // [FIX #5] Only use cache for unfiltered non-archived requests — archived and search bypass cache
-    if(!q && !onlyArch){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } }
+    if(!q && !onlyArch){ var hit=cGet(CACHE_KEY); if(hit){ logInfo('cache hit'); return _page(hit,page,limit,'',onlyArch,inclArch); } } // cache only for unfiltered non-archived requests
     var sh=getOrCreateSheet(SHEET_DEBTS), lr=sh.getLastRow();
     if(lr<=1) return {success:true,data:[],total:0,page:page,limit:limit,summary:defSummary()};
     var raw=sh.getRange(1,1,lr,sh.getLastColumn()).getValues();
     var all=[];
     for(var r=1;r<raw.length;r++){if(raw[r][DC.id]){var _d=rToDebt(raw[r]);_d._rowIdx=r;all.push(_d);}}
     all.reverse();
-    // [FIX #5] Only cache the full unfiltered result set
     if(!q && !onlyArch) cSet(CACHE_KEY,all);
     return _page(all,page,limit,q,onlyArch,inclArch);
   } catch(err){ logError('getDebts',err); return {success:false,message:err.message,data:[],total:0,summary:defSummary()}; }
@@ -320,8 +350,7 @@ function _page(all,page,limit,q,onlyArch,inclArch) {
   list = list.slice().sort(function(a, b) { return (b._rowIdx || 0) - (a._rowIdx || 0); });
   var total=list.length, start=(page-1)*limit;
   var slice=list.slice(start,start+limit);
-  // [FIX #4] Summary always computed from ALL non-archived debts — independent of search filter
-  var activeSrc = all.filter(function(d){ return !d.archived; });
+  var activeSrc = all.filter(function(d){ return !d.archived; }); // summary totals from all active, not search slice
   var s = defSummary();
   s.archived = all.filter(function(d){ return !!d.archived; }).length;
   activeSrc.forEach(function(d){
@@ -420,7 +449,7 @@ function updateDebt(params) {
   finally{ releaseLock(lock); }
 }
 
-// [FIX #2] deleteDebt — removed broken rollback; full atomic delete (debt + installments) with no partial state
+// [API] Delete debt and all associated installments atomically
 function deleteDebt(params) {
   var lock=acquireLock();
   try {
