@@ -1,5 +1,5 @@
 /**
- * Lunasin v1.3.0 | © 2026 Bayu Wicaksono
+ * Lunasin v1.4.0 | © 2026 Bayu Wicaksono
  */
 
 // [CONFIG] Sheet names, cache key, and lock timeout
