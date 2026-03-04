@@ -36,6 +36,11 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 | ↔️ **Swipe Gesture** | Geser kartu kanan/kiri untuk edit, hapus, atau arsip (mobile) |
 | 🔄 **Pull-to-Refresh** | Tarik ke bawah untuk memperbarui data dari spreadsheet |
 | 📱 **Full-Screen Mobile** | Dioptimasi untuk Android & iPhone, semua ukuran layar |
+| 🔗 **Copy Link Utang** | Salin link read-only per-utang untuk dibagikan ke pihak lain |
+| ↩️ **Undo Delete** | 5 detik jendela undo setelah menghapus — tidak ada penghapusan tidak sengaja |
+| 📝 **Catatan per Cicilan** | Tambahkan catatan opsional pada setiap pembayaran cicilan |
+| 🔴 **Badge Overdue** | Ikon Dashboard menampilkan jumlah utang lewat jatuh tempo secara real-time |
+| 📳 **Haptic Feedback** | Getaran kontekstual untuk navigasi, hapus, dan validasi (Android) |
 
 ---
 
@@ -54,10 +59,11 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 
 ```
 lunasin/
-├── Code.gs       # Backend — API handler, CRUD, validasi, rate limiting
-├── Index.html    # Entry point — HTML struktur + font preload + GAS includes
-├── Styles.html   # Semua CSS — design tokens, komponen, animasi
-└── Script.html   # Semua JS — state, UI, event handler, demo mode
+├── Code.gs          # Backend — API handler, CRUD, validasi, rate limiting
+├── Index.html       # Entry point — HTML struktur + font preload + GAS includes
+├── Styles.html      # Semua CSS — design tokens, komponen, animasi
+├── Script.html      # Semua JS — state, UI, event handler, demo mode
+└── ShareView.html   # Halaman read-only untuk share link per-utang
 ```
 
 ---
@@ -88,8 +94,11 @@ Di panel kiri editor, buat **4 file** berikut:
 | `Index.html` | Klik `+` → pilih **HTML** → beri nama `Index` | Isi file `Index.html` |
 | `Styles.html` | Klik `+` → pilih **HTML** → beri nama `Styles` | Isi file `Styles.html` |
 | `Script.html` | Klik `+` → pilih **HTML** → beri nama `Script` | Isi file `Script.html` |
+| `ShareView.html` | Klik `+` → pilih **HTML** → beri nama `ShareView` | Isi file `ShareView.html` |
 
-> ⚠️ Nama file harus **persis sama** (case-sensitive). `Index.html` memanggil `Styles` dan `Script` via `include()` — salah nama menyebabkan error deploy.
+> ⚠️ Nama file harus **sama persis** (case-sensitive). `Code.gs` memanggil `ShareView` — salah nama menyebabkan error deploy.
+
+> ⚠️ Nama file harus **sama persis** (case-sensitive). `Index.html` memanggil `Styles` dan `Script` via `include()` — salah nama menyebabkan error deploy.
 
 **4. Inisialisasi database**
 
@@ -199,7 +208,8 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
   "action": "addPayment",
   "debt_id": "DEBT-20250101-0001",
   "payment_amount": 1000000,
-  "payment_date": "2025-03-15"
+  "payment_date": "2025-03-15",
+  "notes": "Transfer BCA"
 }
 ```
 
@@ -215,6 +225,12 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 
 ```json
 { "action": "healthCheck" }
+```
+
+### `getAppUrl`
+
+```json
+{ "action": "getAppUrl" }
 ```
 
 ---
