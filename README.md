@@ -86,7 +86,7 @@ Klik menu **Extensions → Apps Script**.
 
 **3. Salin kode**
 
-Di panel kiri editor, buat **4 file** berikut:
+Di panel kiri editor, buat **5 file** berikut:
 
 | File | Cara membuat | Isi dengan |
 |---|---|---|
