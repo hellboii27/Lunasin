@@ -33,8 +33,10 @@ var D = {
   txSum:   document.getElementById('tx-sum'),
   txRat:   document.getElementById('tx-rat'),
   archBadge: document.getElementById('arch-count-badge'),
-  tabActive: document.getElementById('tab-active'),
-  tabArch:   document.getElementById('tab-archived')
+  tabActive:   document.getElementById('tab-active'),
+  tabArch:     document.getElementById('tab-archived'),
+  topRight:    document.getElementById('top-right'),
+  topbarSalin: document.getElementById('topbar-salin')
 };
 
 var S = {
@@ -55,17 +57,17 @@ var S = {
   _cacheTTL: 30000
 };
 
-// [CONFIG] GAS call timeout in ms — prevents UI hanging indefinitely
+// GAS call timeout — prevents UI hanging indefinitely
 var CALL_TIMEOUT_MS = 30000;
 
-// [UTIL] Format number to Rupiah display string
+// Format number to Rupiah display string
 var _rpFmt = new Intl.NumberFormat('id-ID');
 function fRp(v) { return 'Rp\u00a0' + _rpFmt.format(+v || 0); }
 
-// [CONFIG] Active timezone from browser — used for date formatting and overdue checks
+// Active timezone from browser for date formatting and overdue checks
 var _TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// [UTIL] Format date/datetime to local display string (dd Mon yyyy)
+// Format date/datetime to local display string (dd Mon yyyy)
 var _dtFmt = new Intl.DateTimeFormat('id-ID', {
   day: '2-digit', month: 'short', year: 'numeric',
   timeZone: _TZ
@@ -76,46 +78,58 @@ function fDt(d) {
   return isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt);
 }
 
-// [PERF] Module-level singleton — avoids creating new Intl object on every _todayLocal() call
+// Singleton Intl formatter — avoids re-creating on every _todayLocal() call
 var _todayFmt = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric', month: '2-digit', day: '2-digit', timeZone: _TZ
 });
 
-// [UTIL] Return today as yyyy-MM-dd in browser local timezone
+// Return today as yyyy-MM-dd in browser local timezone
 function _todayLocal() {
   var parts = _todayFmt.formatToParts(new Date()), p = {};
   parts.forEach(function(x) { p[x.type] = x.value; });
   return p.year + '-' + p.month + '-' + p.day;
 }
-// [UTIL] Check if due_date is overdue — re-evaluates today on each call, safe across midnight
+// Check if due_date is overdue; re-evaluates today on each call, safe across midnight
 function isOD(due) { return due ? due < _todayLocal() : false; }
 
-// [UTIL] Calculate payment percentage capped at 100
+// Calculate payment percentage, capped at 100
 function pct(p, t) { t = +t; p = +p; return t ? Math.min(100, Math.round(p / t * 100)) : 0; }
 
-// [UTIL] Escape HTML special characters — prevents XSS in innerHTML concatenation
+// Escape HTML special characters to prevent XSS in innerHTML
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-// [UTIL] Extract initials from full name
+
+// Haptic feedback via navigator.vibrate; silent no-op on iOS
+function haptic(type) {
+  try {
+    if (!navigator.vibrate) return;
+    if (type === 'light')   navigator.vibrate(8);
+    else if (type === 'medium') navigator.vibrate(15);
+    else if (type === 'error')  navigator.vibrate([20, 60, 20]);
+    else navigator.vibrate(10);
+  } catch(e) {}
+}
+
+// Extract up to two initials from full name
 function ini(n) {
   var a = String(n || '').trim().split(/\s+/);
   return a.length >= 2 ? (a[0][0] + a[1][0]).toUpperCase() : String(n || '').slice(0, 2).toUpperCase();
 }
 
-// [UTIL] Shorthand getElementById
+// Shorthand for getElementById
 function g(id) { return document.getElementById(id); }
 
 D.dchip.textContent = _dtFmt.format(new Date());
 
-// [UTIL] Parse raw input to safe non-negative integer
+// Parse raw string input to safe non-negative integer
 function _rpInt(v) {
   var n = parseInt(String(v || 0).replace(/\D/g, ''), 10);
   return isNaN(n) ? 0 : Math.max(0, n);
 }
 
-// [UX] Init currency input with live Rupiah formatting
+// Init currency input with live Rupiah formatting and cursor correction
 function initCI(el, cb) {
   el.addEventListener('input', function() {
     var pos = el.selectionStart, old = el.value;
@@ -136,18 +150,18 @@ function initCI(el, cb) {
   });
 }
 
-// [UTIL] Read formatted currency input as raw integer
+// Read formatted currency input as raw integer
 function raw(id) { return _rpInt(g(id).dataset.raw); }
-// [UTIL] Reset currency input to empty
+// Reset currency input to empty
 function resetCI(id) { var e = g(id); e.value = ''; e.dataset.raw = '0'; }
-// [UTIL] Set currency input value programmatically
+// Set currency input value programmatically
 function setCI(id, val) {
   var e = g(id), n = _rpInt(val);
   e.value = n ? _rpFmt.format(n) : '';
   e.dataset.raw = String(n);
 }
 
-// [UTIL] call() — wraps google.script.run with timeout; fails gracefully after CALL_TIMEOUT_MS
+// Wrap google.script.run with timeout; falls back to demo() outside GAS
 function call(p, ok, fail) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     var done = false;
@@ -176,11 +190,11 @@ function call(p, ok, fail) {
   }
 }
 
-// [SECURITY] Client sanitize name field
+// Client-side sanitize name field
 function _sName(v) {
   return String(v || '').replace(/<[^>]*>/g, '').replace(/[<>"'`]/g, '').trim().slice(0, 200);
 }
-// [SECURITY] Client sanitize notes field
+// Client-side sanitize notes field
 function _sNotes(v) {
   return String(v || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -200,7 +214,7 @@ function _dateTag() {
 function _demoDebtId() { return 'DEBT-' + _dateTag() + '-' + ('0000' + (++_demoCtr)).slice(-4); }
 function _demoInstId() { return 'INST-' + _dateTag() + '-' + ('0000' + (++_demoCtr)).slice(-4); }
 
-// [CONFIG] Demo seed data — debts and installments
+// Demo seed data — debts and installments
 var DD = [
   {id:'DEBT-20241201-0001',person_name:'Andi Wirawan',  principal_amount:5000000,interest_amount:500000, total_amount:5500000, paid_amount:2000000,remaining_amount:3500000,overpayment_amount:0,status:'active',due_date:'2025-09-01',created_at:'2024-12-01T10:00:00+07:00',updated_at:'2025-02-15T08:00:00+07:00',notes:'Pinjaman modal usaha warung'},
   {id:'DEBT-20250110-0002',person_name:'Siti Rahayu',   principal_amount:2000000,interest_amount:200000, total_amount:2200000, paid_amount:2500000,remaining_amount:0,overpayment_amount:300000,status:'paid',  due_date:'2025-03-01',created_at:'2025-01-10T09:00:00+07:00',updated_at:'2025-02-20T09:00:00+07:00',notes:'Keperluan sekolah anak'},
@@ -216,8 +230,8 @@ var DD = [
   {id:'DEBT-20241215-0012',person_name:'Lestari Wulan', principal_amount:800000, interest_amount:80000,  total_amount:880000,  paid_amount:880000, remaining_amount:0,      overpayment_amount:0,status:'paid',  due_date:'2025-01-15',created_at:'2024-12-15T00:00:00+07:00',updated_at:'2025-01-10T00:00:00+07:00',notes:''}
 ];
 var DI = [
-  {id:'INST-20250115-0001',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-01-15',created_at:'2025-01-15T10:00:00+07:00'},
-  {id:'INST-20250215-0002',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-02-15',created_at:'2025-02-15T10:00:00+07:00'},
+  {id:'INST-20250115-0001',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-01-15',created_at:'2025-01-15T10:00:00+07:00',notes:'Transfer BCA'},
+  {id:'INST-20250215-0002',debt_id:'DEBT-20241201-0001',payment_amount:1000000,payment_date:'2025-02-15',created_at:'2025-02-15T10:00:00+07:00',notes:''},
   {id:'INST-20250120-0003',debt_id:'DEBT-20250110-0002',payment_amount:1100000,payment_date:'2025-01-20',created_at:'2025-01-20T10:00:00+07:00'},
   {id:'INST-20250220-0004',debt_id:'DEBT-20250110-0002',payment_amount:1100000,payment_date:'2025-02-20',created_at:'2025-02-20T10:00:00+07:00'},
   {id:'INST-20250320-004b',debt_id:'DEBT-20250110-0002',payment_amount:300000, payment_date:'2025-03-20',created_at:'2025-03-20T10:00:00+07:00'},
@@ -235,7 +249,7 @@ var DI = [
   {id:'INST-20250110-0016',debt_id:'DEBT-20241215-0012',payment_amount:880000, payment_date:'2025-01-10',created_at:'2025-01-10T10:00:00+07:00'}
 ];
 
-// [CALC] Build dashboard summary totals from debt list
+// Build dashboard summary totals from full debt list
 function buildSummary(allDebts) {
   var all    = allDebts || [];
   var active = all.filter(function(d){ return !d.archived; });
@@ -253,7 +267,7 @@ function buildSummary(allDebts) {
   return s;
 }
 
-// [API] Demo mode — simulate all backend actions in-memory
+// Demo mode — simulate all backend actions in-memory with setTimeout delay
 function demo(p, ok, fail) {
   setTimeout(function() {
     try {
@@ -379,7 +393,7 @@ function demo(p, ok, fail) {
   }, 450 + Math.random() * 200);
 }
 
-// [UTIL] Animated scroll to top — rAF ease-out cubic, targets #app for GAS iframe compatibility
+// Animated scroll to top — rAF ease-out cubic, targets #app for GAS iframe
 function _scrollTop(el, onDone) {
   var container = el || document.getElementById('app') || document.body;
   var start = container.scrollTop;
@@ -397,7 +411,17 @@ function _scrollTop(el, onDone) {
   requestAnimationFrame(step);
 }
 
-// [UI] Navigate to named SPA page with slide transition
+
+// Update overdue count badge on dashboard nav icon
+function updateODBadge() {
+  var badge = document.getElementById('nav-od-badge');
+  if (!badge) return;
+  var count = S.debts.filter(function(d) { return !d.archived && d.status !== 'paid' && isOD(d.due_date); }).length;
+  badge.textContent = count > 9 ? '9+' : (count || '');
+  badge.classList.toggle('vis', count > 0);
+}
+
+// Navigate to named SPA page with slide transition
 function goPage(name) {
   if (S.busy || name === S.page) return;
   S.busy = true;
@@ -411,6 +435,15 @@ function goPage(name) {
   for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
   g('nav-' + name).classList.add('active');
   D.fab.classList.toggle('hidden', name !== 'dashboard');
+  // On detail page: swap date/avatar for Salin button in top-bar
+  var _dc = document.getElementById('date-chip');
+  var _hd = document.getElementById('health-dot');
+  var _av = document.querySelector('.avatar');
+  var _isDetail = (name === 'detail');
+  if (_dc) _dc.style.display = _isDetail ? 'none' : '';
+  if (_hd) _hd.style.display = _isDetail ? 'none' : '';
+  if (_av) _av.style.display = _isDetail ? 'none' : '';
+  if (D.topbarSalin) D.topbarSalin.style.display = _isDetail ? '' : 'none';
   setTimeout(function() {
     try {
       out.classList.remove('p-leave', 'active');
@@ -426,13 +459,13 @@ function goPage(name) {
   }, 280);
 }
 
-// [EVENT] Delegated bottom-nav click handler
+// Delegated bottom-nav click — routes to correct page
 document.querySelector('.bottom-nav').addEventListener('click', function(e) {
   var b = e.target.closest('.nav-item');
-  if (b) goPage(b.dataset.page);
+  if (b) { haptic('light'); goPage(b.dataset.page); }
 });
 
-// [UX] Init pull-to-refresh touch gesture
+// Init pull-to-refresh touch gesture
 function initPullToRefresh() {
   var sy = 0, pull = false, th = 70, max = 100, refreshing = false;
   var ptr = D.ptr, txt = D.prtxt;
@@ -467,7 +500,7 @@ function initPullToRefresh() {
   }, { passive: true });
 }
 
-// [STATE] Reload all debts and sync dashboard UI
+// Force cache bust and reload all debts, then sync dashboard UI
 function refreshData(done) {
   S._cache.ts = 0;
   loadDebts(function() {
@@ -477,10 +510,10 @@ function refreshData(done) {
   });
 }
 
-// [STATE] In-flight guard — prevents concurrent loadDebts calls from racing each other
+// In-flight guard — prevents concurrent loadDebts calls from racing
 var _loadingDebts = false;
 
-// [API] Fetch all debts including archived, populate state from cache or backend
+// Fetch all debts (including archived), populate S.debts and S.archivedDebts
 function loadDebts(done) {
   if (_loadingDebts) { if (done) setTimeout(done, 0); return; }
   _loadingDebts = true;
@@ -494,6 +527,7 @@ function loadDebts(done) {
       S._cache.ts = Date.now();
       var sum = buildSummary(S.debts.concat(S.archivedDebts));
       renderDash(S.debts, sum);
+      updateODBadge();
       if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
       if (done) done();
     },
@@ -507,10 +541,10 @@ function loadDebts(done) {
   );
 }
 
-// [STATE] Handle for pending buildDebtCards call — cancelled on rapid successive renderDash
+// Handle for pending buildDebtCards — cancelled on rapid successive renderDash calls
 var _buildCardsTimer = null;
 
-// [UI] Render dashboard hero stats and debt list
+// Render dashboard hero stats and kick off debt card build
 function renderDash(debts, sum) {
   var th = sum.totalHutang || 0, tp = sum.totalPaid || 0, tr = sum.totalSisa || 0;
   var ca = sum.aktif || 0, cp = sum.lunas || 0, ct = sum.total;
@@ -543,7 +577,7 @@ function renderDash(debts, sum) {
   D.dskel.style.display = 'none'; D.dbody.style.display = 'block';
 }
 
-// [UI] Build and inject debt cards into dashboard list, sorted newest-first
+// Build and inject debt cards into dashboard list
 function buildDebtCards(debts) {
   if (!debts.length) {
     D.dlist.innerHTML = '<div class="empty"><div class="ic">📄</div><p>Belum ada data utang.<br/>Klik ＋ untuk menambahkan.</p></div>';
@@ -589,10 +623,10 @@ function buildDebtCards(debts) {
   });
 }
 
-// [PERF] rAF handle registry — cancel any running countUp animation before starting a new one
+// rAF handle registry — cancel stale countUp animations before starting new ones
 var _rafHandles = {};
 
-// [UI] Animate number count-up with rAF cubic-ease; cancels stale animation on same element
+// Animate number count-up with rAF cubic-ease; cancels stale animation on same element
 function countUp(id, target, fmt) {
   var el = g(id); if (!el) return;
   if (_rafHandles[id]) { cancelAnimationFrame(_rafHandles[id]); _rafHandles[id] = null; }
@@ -611,13 +645,13 @@ function countUp(id, target, fmt) {
   _rafHandles[id] = requestAnimationFrame(tick);
 }
 
-// [EVENT] Delegated click handler for dashboard debt cards
+// Delegated click handler for dashboard debt cards
 D.dlist.addEventListener('click', function(e) {
   var c = e.target.closest('.debt-card');
   if (c && c.dataset.id) openDet(c.dataset.id);
 });
 
-// [UX] Switch between active and archived tabs
+// Switch between active and archived transaction tabs
 function switchTxTab(tab) {
   S.txTab = tab; S.txPg = 1;
   S.q = ''; D.txsrch.value = ''; D.txclr.classList.remove('vis');
@@ -626,7 +660,7 @@ function switchTxTab(tab) {
   loadTx();
 }
 
-// [API] Fetch transaction list for active or archived tab, use cached state if fresh
+// Fetch transaction list for current tab; uses cached state if fresh
 function loadTx() {
   D.txl.innerHTML = '<div class="lw"><div class="loader"></div><br/>Memuat…</div>';
   D.txpag.style.display = 'none'; D.swh.style.display = 'none';
@@ -663,7 +697,7 @@ function loadTx() {
   });
 }
 
-// [UI] Render paginated transaction card list
+// Render paginated transaction card list with swipe actions
 function renderTxPage() {
   var data = S.filtered.slice();
   var pg = S.txPg, per = S.txPer, tot = data.length;
@@ -731,10 +765,10 @@ function renderTxPage() {
   });
 }
 
-// [STATE] Track currently open swipe wrap ID
+// Track currently open swipe wrap ID
 var _openSwipe = null;
 
-// [UX] Close all open swipe cards by snapping them back to center
+// Snap all open swipe cards back to center
 function closeAllSwipes() {
   if (!_openSwipe) return;
   var wrap = g('sw-' + _openSwipe);
@@ -750,10 +784,10 @@ function closeAllSwipes() {
   _openSwipe = null;
 }
 
-// [PERF] WeakMap tracks swipe listeners per card element — stale listeners removed on each re-render
+// WeakMap tracks swipe listeners per card — removed on each re-render
 var _swipeListeners = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
-// [UX] Attach touch-based swipe gesture — left reveals Arsip/Hapus, right reveals Edit/Restore
+// Attach touch swipe gesture: left reveals delete/archive, right reveals edit/restore
 function initSwipeGesture(id) {
   var wrap = g('sw-' + id);
   if (!wrap) return;
@@ -771,7 +805,7 @@ function initSwipeGesture(id) {
     }
   }
 
-  // [CONFIG] Swipe thresholds and limits
+  // Swipe snap threshold in px
   var SNAP_THRESHOLD = 50;
 
   var startX = 0, startY = 0, curX = 0, dragging = false, lockAxis = null;
@@ -810,10 +844,10 @@ function initSwipeGesture(id) {
     card.classList.add('settling');
     if (dx < -SNAP_THRESHOLD) {
       card.style.transform = 'translateX(-' + rw + 'px)';
-      wrap.classList.add('revealed'); _openSwipe = id;
+      wrap.classList.add('revealed'); _openSwipe = id; haptic('light');
     } else if (dx > SNAP_THRESHOLD) {
       card.style.transform = 'translateX(' + lw + 'px)';
-      wrap.classList.add('revealed'); _openSwipe = id;
+      wrap.classList.add('revealed'); _openSwipe = id; haptic('light');
     } else {
       card.style.transform = 'translateX(0)';
       wrap.classList.remove('revealed');
@@ -845,7 +879,7 @@ function initSwipeGesture(id) {
   }
 }
 
-// [EVENT] Delegated click handler for tx list — delete, edit, archive, open
+// Delegated click handler for tx list: delete, edit, archive, unarchive, open
 D.txl.addEventListener('click', function(e) {
   var del    = e.target.closest('[data-del]');
   var edit   = e.target.closest('[data-edit]');
@@ -859,14 +893,14 @@ D.txl.addEventListener('click', function(e) {
   if (card && card.dataset.id) openDet(card.dataset.id);
 });
 
-// [EVENT] Pagination — prev (scroll up with animation, then render new page)
+// Pagination prev — scroll to top then render previous page
 D.txprev.addEventListener('click', function() {
   if (S.txPg > 1) {
     S.txPg--;
     _scrollTop(null, function() { renderTxPage(); });
   }
 });
-// [EVENT] Pagination — next (scroll up with animation, then render new page)
+// Pagination next — scroll to top then render next page
 D.txnext.addEventListener('click', function() {
   var tp = Math.max(1, Math.ceil(S.filtered.length / S.txPer));
   if (S.txPg < tp) {
@@ -875,7 +909,7 @@ D.txnext.addEventListener('click', function() {
   }
 });
 
-// [UX] Debounced search — filters in-memory debt state
+// Debounced search — filters in-memory debt state on input
 var _searchTimer;
 D.txsrch.addEventListener('input', function() {
   var q = this.value.trim().toLowerCase(); S.q = q;
@@ -900,9 +934,9 @@ D.txclr.addEventListener('click', function() {
   S.filtered = _clrSrc.slice(); S.txPg = 1; renderTxPage();
 });
 
-// [EVENT] Open delete confirmation dialog
+// Open delete confirmation dialog with debt name label
 function handleSwipeDelete(id) {
-  closeAllSwipes();
+  haptic('medium'); closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; })
        || S.archivedDebts.find(function(x) { return x.id === id; });
   g('del-name-lbl').textContent = '"' + (d ? d.person_name : 'transaksi ini') + '"';
@@ -910,7 +944,7 @@ function handleSwipeDelete(id) {
   g('confirm-del').classList.add('open');
 }
 
-// [EVENT] Open edit modal pre-filled with debt data
+// Open edit modal pre-filled with existing debt data
 function handleSwipeEdit(id) {
   closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; })
@@ -930,7 +964,7 @@ function handleSwipeEdit(id) {
   openM('modal-edit');
 }
 
-// [EVENT] Open archive confirmation dialog
+// Open archive confirmation dialog; validates paid status
 function handleSwipeArchive(id) {
   closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; });
@@ -941,7 +975,7 @@ function handleSwipeArchive(id) {
   document.getElementById('confirm-arch').classList.add('open');
 }
 
-// [EVENT] Unarchive debt with optimistic UI update and rollback
+// Unarchive debt with optimistic UI update and server rollback
 function doUnarchive(id) {
   var idx = S.archivedDebts.findIndex(function(x){ return x.id === id; });
   var snapD = S.debts.slice(), snapA = S.archivedDebts.slice();
@@ -969,7 +1003,7 @@ function doUnarchive(id) {
   );
 }
 
-// [STATE] Optimistic remove — clear card from DOM and state arrays
+// Optimistic remove — clear card from DOM immediately
 function optimisticRemove(id) {
   var swWrap = g('sw-' + id);
   if (swWrap) { swWrap.remove(); }
@@ -978,7 +1012,7 @@ function optimisticRemove(id) {
   if (dCard) dCard.classList.add('removing');
 }
 
-// [STATE] Optimistic update — patch debt in state and filtered list
+// Optimistic update — patch debt in state and re-filter
 function optimisticUpdateLocal(debt) {
   var idx = S.debts.findIndex(function(x) { return x.id === debt.id; });
   if (idx >= 0) {
@@ -998,17 +1032,17 @@ function optimisticUpdateLocal(debt) {
   }) : src.slice();
 }
 
-// [STATE] Optimistic add — prepend new debt to state
+// Optimistic add — prepend new debt to state
 function optimisticAdd(debt) {
   S.debts.unshift(debt);
   S.filtered = S.q ? S.filtered : S.debts.slice();
 }
 
-// [UX] Open and close modal overlay
+// Open and close modal overlay
 function openM(id)  { g(id).classList.add('open'); }
 function closeM(id) { g(id).classList.remove('open'); }
 
-// [EVENT] Close modal on backdrop click
+// Close modal on backdrop click
 document.addEventListener('click', function(e) {
   var modals = document.querySelectorAll('.modal-ov.open');
   for (var i = 0; i < modals.length; i++) {
@@ -1016,17 +1050,17 @@ document.addEventListener('click', function(e) {
   }
 });
 
-D.fab.addEventListener('click', function() { openM('modal-create'); });
+D.fab.addEventListener('click', function() { haptic('light'); openM('modal-create'); });
 g('btn-create-x').addEventListener('click', function() { closeM('modal-create'); });
 
-// [UI] Update total preview in create form
+// Update total preview in create form
 function updatePrev() {
   var p = raw('inp-prin'), i = raw('inp-int'), pv = g('c-prev');
   if (p + i > 0) { pv.style.display = 'block'; g('c-tot').textContent = fRp(p + i); }
   else pv.style.display = 'none';
 }
 
-// [UI] Update total preview in edit form
+// Update total preview in edit form
 function updateEditPrev() {
   var p = raw('edit-prin'), i = raw('edit-int'), pv = g('edit-prev');
   if (p + i > 0) { pv.style.display = 'block'; g('edit-tot').textContent = fRp(p + i); }
@@ -1037,8 +1071,8 @@ g('btn-create').addEventListener('click', function() {
   var name  = _sName(g('inp-name').value);
   var pr    = raw('inp-prin'), ir = raw('inp-int'), due = g('inp-due').value;
   var notes = _sNotes(g('inp-notes').value);
-  if (!name) { showToast('Nama tidak boleh kosong', 'e'); return; }
-  if (!pr)   { showToast('Pokok harus lebih dari 0', 'e'); return; }
+  if (!name) { haptic('error'); showToast('Nama tidak boleh kosong', 'e'); return; }
+  if (!pr)   { haptic('error'); showToast('Pokok harus lebih dari 0', 'e'); return; }
 
   var btn = this;
   btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
@@ -1055,7 +1089,7 @@ g('btn-create').addEventListener('click', function() {
   call({ action:'createDebt', person_name:name, principal_amount:pr, interest_amount:ir, due_date:due, notes:notes },
     function(res) {
       btn.textContent = 'Simpan Utang'; btn.disabled = false;
-      closeM('modal-create');
+      haptic('light'); closeM('modal-create');
       showToast('✅ Utang berhasil ditambahkan!', 's');
       var idx = S.debts.findIndex(function(x) { return x.id === tempId; });
       if (idx >= 0) S.debts[idx] = res.data; else S.debts.unshift(res.data);
@@ -1115,7 +1149,7 @@ g('btn-edit-save').addEventListener('click', function() {
   call({ action:'updateDebt', id:id, person_name:name, principal_amount:pr, interest_amount:ir, due_date:due, notes:notes },
     function(res) {
       btn.textContent = 'Simpan Perubahan'; btn.disabled = false;
-      closeM('modal-edit');
+      haptic('light'); closeM('modal-edit');
       showToast('✅ Data berhasil diperbarui!', 's');
       optimisticUpdateLocal(res.data);
       S._cache.ts = 0;
@@ -1178,13 +1212,18 @@ g('del-cancel').addEventListener('click', function() {
 g('confirm-del').addEventListener('click', function(e) {
   if (e.target === this) { this.classList.remove('open'); S.pendingDel = null; }
 });
+var _pendingDelTimer = null;
+
 g('del-confirm').addEventListener('click', function() {
   var id = S.pendingDel; if (!id) return;
-  var btn = this;
-  btn.innerHTML = '<div class="loader"></div> Menghapus…'; btn.disabled = true;
+  haptic('medium');
+  g('confirm-del').classList.remove('open'); S.pendingDel = null;
 
   var snapshotDebts = JSON.parse(JSON.stringify(S.debts));
   var snapshotArch  = JSON.parse(JSON.stringify(S.archivedDebts));
+  var d = S.debts.find(function(x){return x.id===id;}) || S.archivedDebts.find(function(x){return x.id===id;});
+  var name = d ? d.person_name : 'transaksi';
+
   optimisticRemove(id);
   S.debts         = S.debts.filter(function(x) { return x.id !== id; });
   S.archivedDebts = S.archivedDebts.filter(function(x) { return x.id !== id; });
@@ -1199,43 +1238,48 @@ g('del-confirm').addEventListener('click', function() {
     D.txRat.textContent = sm.aktif + ' / ' + sm.lunas;
   }
   if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
+  updateODBadge();
 
-  call({ action:'deleteDebt', id:id },
-    function() {
-      btn.textContent = 'Hapus Sekarang'; btn.disabled = false;
-      g('confirm-del').classList.remove('open'); S.pendingDel = null;
-      showToast('🗑️ Data berhasil dihapus', 's');
-      if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
-      S._cache.ts = 0;
-      if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
-      if (S.selId === id) {
-        S.selId = null;
-        D.det.innerHTML = '<div class="det-ph"><div class="ic">🗑️</div><p>Transaksi sudah dihapus.</p></div>';
+  // 5-second undo window before committing delete to server
+  if (_pendingDelTimer) clearTimeout(_pendingDelTimer);
+  showToast('🗑️ ' + name + ' dihapus', 's', function() {
+    clearTimeout(_pendingDelTimer); _pendingDelTimer = null;
+    S.debts = snapshotDebts; S.archivedDebts = snapshotArch;
+    S.filtered = (S.txTab === 'archived' ? S.archivedDebts : S.debts).slice();
+    var tpg2 = Math.max(1, Math.ceil(S.filtered.length / S.txPer));
+    if (S.txPg > tpg2) S.txPg = tpg2;
+    if (S.page === 'transactions') renderTxPage();
+    if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
+    updateODBadge();
+    showToast('↩️ Penghapusan dibatalkan', 's');
+  });
+
+  _pendingDelTimer = setTimeout(function() {
+    _pendingDelTimer = null;
+    call({ action:'deleteDebt', id:id },
+      function() {
+        if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
+        S._cache.ts = 0;
+        if (S.selId === id) {
+          S.selId = null;
+          D.det.innerHTML = '<div class="det-ph"><div class="ic">🗑️</div><p>Transaksi sudah dihapus.</p></div>';
+        }
+      },
+      function(e) {
+        showToast('Gagal menghapus: ' + e, 'e');
+        S.debts = snapshotDebts; S.archivedDebts = snapshotArch;
+        S.filtered = (S.txTab === 'archived' ? S.archivedDebts : S.debts).slice();
+        if (S.page === 'transactions') renderTxPage();
+        if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
+        updateODBadge();
       }
-    },
-    function(e) {
-      btn.textContent = 'Hapus Sekarang'; btn.disabled = false;
-      showToast('Gagal menghapus: ' + e, 'e');
-      S.debts = snapshotDebts;
-      S.archivedDebts = snapshotArch;
-      var src = S.txTab === 'archived' ? S.archivedDebts : S.debts;
-      S.filtered = S.q ? src.filter(function(d) {
-        var statusAlias = d.status === 'paid' ? 'lunas' : d.status === 'active' ? 'aktif' : d.status;
-        var isOvAlias   = (d.overpayment_amount || 0) > 0 ? 'lebih bayar' : '';
-        return (d.person_name||'').toLowerCase().indexOf(S.q) !== -1 ||
-               (d.notes||'').toLowerCase().indexOf(S.q)       !== -1 ||
-               statusAlias.indexOf(S.q) !== -1 ||
-               isOvAlias.indexOf(S.q)   !== -1;
-      }) : src.slice();
-      if (S.page === 'transactions') renderTxPage();
-      if (S.page === 'dashboard')   renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
-    }
-  );
+    );
+  }, 5000);
 });
 
-g('btn-pay-x').addEventListener('click', function() { closeM('modal-pay'); });
+g('btn-pay-x').addEventListener('click', function() { closeM('modal-pay'); var n=g('inp-pay-notes'); if(n)n.value=''; });
 
-// [UI] Open payment modal with debt context
+// Open payment modal pre-filled with debt context
 function openPay(debtId, remaining) {
   var d = S.debts.find(function(x) { return x.id === debtId; })
        || S.archivedDebts.find(function(x) { return x.id === debtId; });
@@ -1249,6 +1293,7 @@ function openPay(debtId, remaining) {
 
 g('btn-pay').addEventListener('click', function() {
   var did = g('pay-id').value, amt = raw('inp-pay'), dt = g('inp-paydate').value;
+  var payNotes = (g('inp-pay-notes') ? g('inp-pay-notes').value.trim().slice(0,300) : '');
   if (!amt) { showToast('Masukkan jumlah pembayaran', 'e'); return; }
   var btn = this;
   btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
@@ -1265,10 +1310,11 @@ g('btn-pay').addEventListener('click', function() {
     optimisticUpdateLocal(opt);
   }
 
-  call({ action:'addPayment', debt_id:did, payment_amount:amt, payment_date:dt },
+  call({ action:'addPayment', debt_id:did, payment_amount:amt, payment_date:dt, notes:payNotes },
     function() {
       btn.textContent = 'Catat Pembayaran'; btn.disabled = false;
-      closeM('modal-pay');
+      haptic('light'); closeM('modal-pay');
+      var _pnf = g('inp-pay-notes'); if (_pnf) _pnf.value = '';
       showToast('✅ Pembayaran berhasil dicatat!', 's');
       S._cache.ts = 0;
       if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
@@ -1283,13 +1329,57 @@ g('btn-pay').addEventListener('click', function() {
   );
 });
 
-// [UI] Set selected debt and go to detail page
+
+// Relay Salin button click from top-bar to copyDebtLink
+function topbarSalin() {
+  if (S.selId) copyDebtLink(S.selId);
+}
+
+// Cache deployed app URL after first fetch to avoid repeat GAS calls
+var _appUrl = null;
+
+// Copy shareable debt link; fetches deploy URL from backend on first use
+function copyDebtLink(id) {
+  haptic('light');
+  if (_appUrl) { _doCopy(_appUrl, id); return; }
+  if (typeof google === 'undefined' || !google.script) {
+    _doCopy(window.location.href.split('?')[0], id); return;
+  }
+  call({ action:'getAppUrl' }, function(r) {
+    _appUrl = (r.url || '').split('?')[0];
+    _doCopy(_appUrl, id);
+  }, function() {
+    _doCopy(window.location.href.split('?')[0], id);
+  });
+}
+
+// Build URL with ?id= param and write to clipboard
+function _doCopy(base, id) {
+  var url = base + '?id=' + encodeURIComponent(id);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      showToast('🔗 Link disalin ke clipboard!', 'i');
+    }).catch(function() { _fallbackCopy(url); });
+  } else { _fallbackCopy(url); }
+}
+
+// Fallback clipboard copy via temporary textarea for older browsers
+function _fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+  document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('🔗 Link disalin ke clipboard!', 'i'); }
+  catch(e) { showToast('Tidak bisa menyalin link', 'e'); }
+  document.body.removeChild(ta);
+}
+
+// Set selected debt ID and navigate to detail page
 function openDet(id) { S.selId = id; goPage('detail'); }
 
-// [STATE] Incremented on each renderDetail call — stale rAF/setTimeout closures check this to bail
+// Generation counter — stale closures bail out if this has changed
 var _detailGen = 0;
 
-// [UI] Fetch and render full debt detail with timeline
+// Fetch and render full debt detail with animated ring and payment timeline
 function renderDetail(id) {
   var el = D.det;
   var myGen = ++_detailGen;
@@ -1394,7 +1484,9 @@ function renderDetail(id) {
           h += '<div class="tl-alloc">';
           if (iAlloc > 0) h += '<span class="at at-i">Bunga: ' + fRp(iAlloc) + '</span>';
           if (pAlloc > 0) h += '<span class="at at-p">Pokok: ' + fRp(pAlloc) + '</span>';
-          h += '</div></div></div>';
+          h += '</div>';
+          if (inst.notes) h += '<div class="tl-note">📝 ' + esc(inst.notes) + '</div>';
+          h += '</div></div>';
         }
         if (!isPaid) {
           h += '<div class="tl-future"><div class="tl-left"><div class="tl-dot" style="font-size:16px">🔮</div><div class="tl-line last"></div></div>';
@@ -1446,6 +1538,7 @@ function renderDetail(id) {
 
         var bb = g('det-back');
         if (bb) bb.addEventListener('click', function() { goPage(S.prevPage || 'dashboard'); });
+
         var _dab = document.getElementById('det-arch-btn');
         if (_dab) _dab.addEventListener('click', function() { handleSwipeArchive(this.dataset.id); });
         var _dub = document.getElementById('det-unarch-btn');
@@ -1466,17 +1559,34 @@ function renderDetail(id) {
 }
 
 var _toastTimer;
-// [UI] Show toast notification with auto-dismiss
-function showToast(msg, type) {
+// Show toast notification with auto-dismiss; pass undoFn to render inline Undo button
+function showToast(msg, type, undoFn) {
   var t = D.toast;
-  t.textContent = msg;
-  t.className   = 'toast ' + (type || '');
+  if (undoFn) {
+    var span = document.createElement('span');
+    span.className = 'toast-undo';
+    var txt = document.createElement('span');
+    txt.textContent = msg;
+    var btn = document.createElement('button');
+    btn.className = 'toast-undo-btn';
+    btn.textContent = 'Undo';
+    btn.addEventListener('click', function() {
+      clearTimeout(_toastTimer);
+      t.classList.remove('show');
+      undoFn();
+    });
+    span.appendChild(txt); span.appendChild(btn);
+    t.innerHTML = ''; t.appendChild(span);
+  } else {
+    t.textContent = msg;
+  }
+  t.className = 'toast ' + (type || '');
   t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3200);
+  _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 5000);
 }
 
-// [UX] Sync due date placeholder visibility for add form
+// Sync due date placeholder visibility for add form
 (function() {
   var inp = document.getElementById('inp-due');
   var ph  = document.getElementById('due-ph');
@@ -1491,7 +1601,7 @@ function showToast(msg, type) {
   sync();
 })();
 
-// [UX] Sync due date placeholder visibility for edit form
+// Sync due date placeholder visibility for edit form
 (function() {
   var inp = document.getElementById('edit-due');
   var ph  = document.getElementById('edit-due-ph');
@@ -1510,7 +1620,7 @@ initCI(g('inp-prin'));
 initCI(g('inp-int'));
 initCI(g('inp-pay'), function() {});
 g('inp-paydate').value = _todayLocal();
-// [UX] Sync paydate placeholder visibility
+// Sync paydate placeholder visibility
 (function() {
   var inp = document.getElementById('inp-paydate');
   var ph  = document.getElementById('paydate-ph');
@@ -1522,7 +1632,7 @@ g('inp-paydate').value = _todayLocal();
 })();
 initPullToRefresh();
 
-// [UX] Offline detection — show/hide banner and update health dot on connection change
+// Offline detection — show/hide banner and update health dot
 (function() {
   var banner = document.getElementById('offline-banner');
   function update() {
@@ -1537,7 +1647,7 @@ initPullToRefresh();
   update();
 })();
 
-// [API] Run health check on startup
+// Health check on startup — sets health dot status
 (function runHealthCheck() {
   var dot = g('health-dot');
   if (dot && navigator.onLine !== false) { dot.className = 'health-dot chk'; dot.title = 'Memeriksa koneksi…'; }

@@ -392,4 +392,26 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
   .fab{right:calc(50% - 240px + 20px)}
   :root{--pad:20px;--gap:12px}
 }
+
+/* ═══════════════ OVERDUE BADGE (nav) ═══════════════ */
+.nav-icon-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center}
+.nav-od-badge{position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;background:var(--danger);border-radius:99px;font-family:'Sora',sans-serif;font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;transform:scale(0);transition:transform var(--tf) var(--spring);border:1.5px solid var(--bg1)}
+.nav-od-badge.vis{transform:scale(1)}
+/* ═══════════════ COPY LINK BTN ═══════════════ */
+.copy-link-btn{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;padding:12px;background:rgba(56,189,248,.1);border:1px solid rgba(56,189,248,.25);border-radius:var(--rs);color:var(--accent2);font-family:'Sora',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-bottom:12px;transition:background var(--tf),transform var(--tf) var(--spring)}
+.copy-link-btn:active{transform:scale(.97);background:rgba(56,189,248,.18)}
+/* topbar-salin: tombol Salin di top-bar, tampil saat halaman detail */
+.topbar-salin{display:inline-flex;align-items:center;gap:4px;background:none;border:none;color:var(--muted);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;padding:0;cursor:pointer;transition:color var(--tf),opacity var(--tf);white-space:nowrap}
+.topbar-salin:active{opacity:.4}
+.topbar-salin svg{opacity:.6}
+/* ═══════════════ UNDO TOAST ═══════════════ */
+.toast-undo{display:flex;align-items:center;gap:10px;max-width:90vw}
+.toast-undo-btn{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.3);border-radius:99px;color:#fff;font-family:'Sora',sans-serif;font-size:12px;font-weight:700;padding:4px 12px;cursor:pointer;flex-shrink:0;transition:background var(--tf)}
+.toast-undo-btn:active{background:rgba(255,255,255,.3)}
+/* ═══════════════ INST NOTES ═══════════════ */
+.tl-note{font-size:11px;color:var(--accent2);margin-top:4px;padding:4px 8px;background:rgba(56,189,248,.08);border-left:2px solid rgba(56,189,248,.35);border-radius:0 4px 4px 0;line-height:1.4}
+.fg-sm{margin-bottom:10px}
+.fi-sm{width:100%;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid var(--glass-b);border-radius:var(--rs);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;resize:none;outline:none;transition:border-color var(--tf)}
+.fi-sm:focus{border-color:var(--accent)}
+.fi-sm::placeholder{color:var(--muted)}
 </style>

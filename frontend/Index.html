@@ -49,8 +49,8 @@
 <div id="app">
   <div class="top-bar">
     <div class="logo">Luna<span>sin</span></div>
-    <div class="top-right">
-      <div class="date-chip" id="date-chip"></div>
+    <div class="top-right" id="top-right">
+      <button class="topbar-salin" id="topbar-salin" style="display:none" onclick="topbarSalin()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Salin Link</button><div class="date-chip" id="date-chip"></div>
       <div class="health-dot" id="health-dot" title="Status koneksi"></div>
       <div class="avatar">BW</div>
     </div>
@@ -94,7 +94,7 @@
       </div>
       <div id="debt-list"></div>
     </div>
-    <footer style="margin-top:4px">© Bayu Wicaksono | v1.4.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:4px">© Bayu Wicaksono | v1.5.0 | All Rights Reserved.</footer>
   </section>
 
   <!-- TRANSACTIONS -->
@@ -125,20 +125,20 @@
       <span class="page-info" id="tx-pi">1 / 1</span>
       <button class="page-btn" id="tx-next">→</button>
     </div>
-    <footer style="margin-top:8px">© Bayu Wicaksono | v1.4.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:8px">© Bayu Wicaksono | v1.5.0 | All Rights Reserved.</footer>
   </section>
 
   <!-- DETAIL -->
   <section id="page-detail" class="page">
     <div id="det-body"><div class="det-ph"><div class="ic">🔍</div><p>Pilih utang dari Dashboard<br/>untuk melihat detail lengkap.</p></div></div>
-    <footer style="margin-top:8px">© Bayu Wicaksono | v1.4.0 | All Rights Reserved.</footer>
+    <footer style="margin-top:8px">© Bayu Wicaksono | v1.5.0 | All Rights Reserved.</footer>
   </section>
 </div>
 
 <button class="fab" id="fab">＋</button>
 
 <nav class="bottom-nav">
-  <button class="nav-item active" data-page="dashboard"    id="nav-dashboard">   <span class="nav-icon">🏠</span><span>Dashboard</span><span class="nav-dot"></span></button>
+  <button class="nav-item active" data-page="dashboard"    id="nav-dashboard"><span class="nav-icon-wrap"><span class="nav-icon">🏠</span><span class="nav-od-badge" id="nav-od-badge"></span></span><span>Dashboard</span><span class="nav-dot"></span></button>
   <button class="nav-item"        data-page="transactions" id="nav-transactions"><span class="nav-icon">📋</span><span>Transaksi</span><span class="nav-dot"></span></button>
   <button class="nav-item"        data-page="detail"       id="nav-detail">      <span class="nav-icon">🔍</span><span>Detail</span>   <span class="nav-dot"></span></button>
 </nav>
@@ -189,6 +189,7 @@
     </div>
     <div class="fg"><label class="fl">Jumlah <span style="color:var(--danger)">*</span></label><div class="cw"><span class="cp">Rp</span><input class="ci" id="inp-pay" type="text" inputmode="numeric" placeholder="500.000" data-raw="0"/></div></div>
     <div class="fg"><label class="fl">Tanggal</label><div class="date-wrap"><input class="fi" id="inp-paydate" type="date"/><span class="date-ph hidden" id="paydate-ph">&#128197; Pilih tanggal</span></div></div>
+    <div class="fg-sm"><label class="fl" style="font-size:12px;margin-bottom:4px">Catatan <span style="color:var(--muted)"></span></label><textarea class="fi-sm" id="inp-pay-notes" placeholder="Tambahkan catatan (opsional)" rows="2" maxlength="300"></textarea></div>
     <button class="btn-p" id="btn-pay">Catat Pembayaran</button>
     <button class="btn-s" id="btn-pay-x">Batal</button>
   </div>

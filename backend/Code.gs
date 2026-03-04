@@ -1,15 +1,15 @@
 /**
- * Lunasin v1.4.0 | © 2026 Bayu Wicaksono
+ * Lunasin v1.5.0 | © 2026 Bayu Wicaksono
  */
 
-// [CONFIG] Sheet names, cache key, and lock timeout
+// Sheet names, cache key, and lock timeout
 var SHEET_DEBTS = 'debts';
 var SHEET_INST  = 'installments';
 var CACHE_KEY   = 'lunasin_debts_v5';
 var CACHE_TTL   = 300;
 var LOCK_MS     = 6000;
 
-// [CONFIG] Column index map for debts sheet
+// Debts sheet column index map
 var DC = {
   id:0, person_name:1, principal_amount:2, interest_amount:3,
   total_amount:4, paid_amount:5, remaining_amount:6,
@@ -22,18 +22,18 @@ var DEBT_HEADERS = [
   'status','due_date','created_at','notes','updated_at','overpayment_amount','archived'
 ];
 
-// [CONFIG] Column index map for installments sheet
-var IC = { id:0, debt_id:1, payment_amount:2, payment_date:3, created_at:4 };
-var INST_HEADERS = ['id','debt_id','payment_amount','payment_date','created_at'];
+// Installments sheet column index map
+var IC = { id:0, debt_id:1, payment_amount:2, payment_date:3, created_at:4, notes:5 };
+var INST_HEADERS = ['id','debt_id','payment_amount','payment_date','created_at','notes'];
 
-// [CONFIG] ScriptProperties keys for ID counters
+// ScriptProperties keys for persistent ID counters
 var _P_DEBT = 'lunasin_ctr_debt', _P_INST = 'lunasin_ctr_inst';
 
-// [CONFIG] Rate limit — max requests per user per rolling window
+// Rate limit — max requests per user per rolling window
 var RATE_LIMIT_MAX = 30;
 var RATE_LIMIT_WIN = 60;
 
-// [SECURITY] Enforce per-user rate limit via ScriptProperties; throw if exceeded
+// Enforce per-user rate limit via ScriptProperties; throws if exceeded
 function _checkRateLimit() {
   try {
     var user  = Session.getEffectiveUser().getEmail() || 'anonymous';
@@ -55,7 +55,7 @@ function _checkRateLimit() {
   }
 }
 
-// [UTIL] Lazy-init TZ — caches spreadsheet timezone, avoids global SpreadsheetApp call
+// Lazy-init timezone; caches spreadsheet TZ, falls back to Asia/Jakarta
 var _TZ = null;
 function _getTZ() {
   if (_TZ) return _TZ;
@@ -67,20 +67,31 @@ function _getTZ() {
   return _TZ;
 }
 
-// [API] Serve SPA with mobile viewport and iframe permissions
-function doGet() {
+// Entry point — serves read-only ShareView if ?id= param present, else full SPA
+function doGet(e) {
+  var debtId = e && e.parameter && e.parameter.id ? sStr(String(e.parameter.id), 50) : '';
+  if (debtId) {
+    var tmpl = HtmlService.createTemplateFromFile('ShareView');
+    tmpl.debtId = debtId;
+    var res = _getSingle(debtId);
+    tmpl.debtJson = JSON.stringify(res.success ? res : { success: false, message: 'Data tidak ditemukan' });
+    return tmpl.evaluate()
+      .setTitle('Lunasin — Detail Utang')
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  }
   return HtmlService.createTemplateFromFile('Index').evaluate()
     .setTitle('Lunasin')
     .addMetaTag('viewport', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0')
     .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
-// [UTIL] GAS template include helper — enables <?!= include() ?> partials in Index.html
+// GAS template include helper — enables <?!= include() ?> partials
 function include(filename) {
   return HtmlService.createHtmlOutputFromFile(filename).getContent();
 }
 
-// [API] Route action string to handler function
+// Route action string to handler; validates rate limit before dispatch
 function processRequest(jsonStr) {
   try {
     _checkRateLimit();
@@ -95,6 +106,7 @@ function processRequest(jsonStr) {
     else if (action === 'archiveDebt')   return JSON.stringify(archiveDebt(params));
     else if (action === 'unarchiveDebt') return JSON.stringify(unarchiveDebt(params));
     else if (action === 'healthCheck')   return JSON.stringify(healthCheck());
+    else if (action === 'getAppUrl')     return JSON.stringify(getAppUrl());
     return JSON.stringify({ success:false, message:'Unknown action: ' + action });
   } catch(err) {
     logError('processRequest', err);
@@ -102,7 +114,7 @@ function processRequest(jsonStr) {
   }
 }
 
-// [INIT] Bootstrap sheets and counters on first deploy
+// Bootstrap sheets and counters — run once on first deploy
 function initApp() {
   logInfo('=== initApp START ===');
   try {
@@ -121,7 +133,15 @@ function initApp() {
   } catch(err) { logError('initApp',err); return { ok:false, message:err.message }; }
 }
 
-// [API] Return spreadsheet connectivity and row count status
+// Return deployed web app URL for share-link generation
+function getAppUrl() {
+  try {
+    var url = ScriptApp.getService().getUrl();
+    return { success: true, url: url };
+  } catch(e) { return { success: false, message: e.message }; }
+}
+
+// Return spreadsheet connectivity and row count status
 function healthCheck() {
   try {
     var ss  = _ss();
@@ -134,23 +154,21 @@ function healthCheck() {
   } catch(err) { logError('healthCheck',err); return { success:false, status:'unhealthy', message:err.message }; }
 }
 
-// [UTIL] Log info message
+// Logging helpers
 function logInfo(m)      { try { Logger.log('[L:INFO] ' + m); } catch(e){} }
-// [UTIL] Log error with context label
 function logError(ctx,e) { try { Logger.log('[L:ERR] ' + ctx + ' — ' + (e&&(e.message||String(e)))); } catch(_){} }
-// [UTIL] Log warning message
 function logWarn(m)      { try { Logger.log('[L:WARN] ' + m); } catch(e){} }
 
-// [UTIL] Return current timestamp as ISO string in active TZ
+// Return current timestamp as ISO string in active TZ
 function nowWIB() {
   return Utilities.formatDate(new Date(), _getTZ(), "yyyy-MM-dd'T'HH:mm:ssZ")
          .replace(/(\d{2})(\d{2})$/, '$1:$2');
 }
 
-// [UTIL] Return today as yyyy-MM-dd in active TZ
+// Return today as yyyy-MM-dd in active TZ
 function todayWIB() { return Utilities.formatDate(new Date(), _getTZ(), 'yyyy-MM-dd'); }
 
-// [UTIL] Format Date or string to yyyy-MM-dd in active TZ
+// Format Date or string to yyyy-MM-dd in active TZ
 function fmtDate(v) {
   if (!v) return '';
   try {
@@ -159,7 +177,7 @@ function fmtDate(v) {
   } catch(e) { return ''; }
 }
 
-// [UTIL] Format Date or string to ISO datetime with offset in active TZ
+// Format Date or string to ISO datetime with TZ offset
 function fmtDT(v) {
   if (!v) return '';
   try {
@@ -170,39 +188,39 @@ function fmtDT(v) {
   } catch(e) { return ''; }
 }
 
-// [UTIL] Increment persistent counter, fallback to random on failure
+// Increment persistent counter; falls back to random on failure
 function _nextCtr(key) {
   try { var p=PropertiesService.getScriptProperties(); var n=(parseInt(p.getProperty(key)||'0',10)+1)%10000; p.setProperty(key,String(n)); return n; }
   catch(e){ logWarn('_nextCtr fallback'); return Math.floor(Math.random()*9000)+1000; }
 }
 
-// [UTIL] Return today as yyyyMMdd string for ID prefix
+// Return today as yyyyMMdd string for ID prefix
 function _dateTag() { return Utilities.formatDate(new Date(), _getTZ(), 'yyyyMMdd'); }
 
-// [UTIL] Check ID uniqueness against sheet column
+// Check ID uniqueness against a sheet column
 function _isUnique(id,sh,ci) {
   try { var lr=sh.getLastRow(); if(lr<=1)return true; var col=sh.getRange(2,ci+1,lr-1,1).getValues(); for(var i=0;i<col.length;i++){if(String(col[i][0])===id)return false;} return true; }
   catch(e){ return true; }
 }
 
-// [UTIL] Generate unique DEBT-YYYYMMDD-XXXX ID
+// Generate unique DEBT-YYYYMMDD-XXXX ID
 function genDebtId(sh) {
   var id; for(var t=0;t<5;t++){ id='DEBT-'+_dateTag()+'-'+('0000'+_nextCtr(_P_DEBT)).slice(-4); if(!sh||_isUnique(id,sh,0))return id; } return id+'-'+Date.now();
 }
 
-// [UTIL] Generate unique INST-YYYYMMDD-XXXX ID
+// Generate unique INST-YYYYMMDD-XXXX ID
 function genInstId(sh) {
   var id; for(var t=0;t<5;t++){ id='INST-'+_dateTag()+'-'+('0000'+_nextCtr(_P_INST)).slice(-4); if(!sh||_isUnique(id,sh,0))return id; } return id+'-'+Date.now();
 }
 
-// [DB] Return active spreadsheet, throw if missing
+// Return active spreadsheet; throws if not found
 function _ss() {
   var ss=SpreadsheetApp.getActiveSpreadsheet();
   if(!ss)throw new Error('Spreadsheet tidak ditemukan. Pastikan skrip dijalankan dari Google Sheets.');
   return ss;
 }
 
-// [DB] Get or create named sheet, run schema migration if exists
+// Get or create named sheet; runs schema migration if sheet already exists
 function getOrCreateSheet(name) {
   var ss=_ss(), sh=ss.getSheetByName(name);
   if(!sh){
@@ -213,7 +231,7 @@ function getOrCreateSheet(name) {
   return sh;
 }
 
-// [DB] Add missing columns without destroying existing data
+// Add missing columns without destroying existing data
 function _migrateSchema(sh,name) {
   try {
     var expected=(name===SHEET_DEBTS)?DEBT_HEADERS:INST_HEADERS;
@@ -231,7 +249,7 @@ function _migrateSchema(sh,name) {
   } catch(e){ logError('_migrateSchema:'+name,e); }
 }
 
-// [DB] Rebuild DC column map from actual sheet header row
+// Rebuild DC column map from actual sheet header row after migration
 function _rebuildDC(sh) {
   try {
     var hdrs=sh.getRange(1,1,1,sh.getLastColumn()).getValues()[0];
@@ -240,18 +258,18 @@ function _rebuildDC(sh) {
   } catch(e){ logError('_rebuildDC',e); }
 }
 
-// [SECURITY] Strip HTML tags and dangerous chars from generic string
+// Sanitize generic string — strips HTML tags and dangerous chars
 function sStr(v,max)  { if(v===null||v===undefined)return ''; return String(v).replace(/<[^>]*>/g,'').replace(/[<>"'`]/g,'').trim().slice(0,max||500); }
-// [SECURITY] Sanitize person name field
+// Sanitize person name field
 function sName(v)     { if(!v)return ''; return String(v).replace(/<[^>]*>/g,'').replace(/[<>"'`]/g,'').trim().slice(0,200); }
-// [SECURITY] Sanitize notes — strip scripts and event handlers
+// Sanitize notes — strip scripts and event handler attributes
 function sNotes(v)    { if(!v)return ''; return String(v).replace(/<script[\s\S]*?<\/script>/gi,'').replace(/<[^>]*>/g,'').replace(/javascript:/gi,'').replace(/on\w+\s*=/gi,'').trim().slice(0,1000); }
-// [SECURITY] Parse Rupiah string to safe non-negative integer
+// Parse Rupiah string to safe non-negative integer
 function sRp(v)       { if(v===null||v===undefined||v==='')return 0; var n=Math.floor(parseFloat(String(v).replace(/[^\d.]/g,''))); return isNaN(n)?0:Math.max(0,n); }
-// [VALIDATION] Validate date string as yyyy-MM-dd or return empty
+// Validate date string as yyyy-MM-dd; return empty string if invalid
 function sDate(v)     { if(!v)return ''; var s=String(v).trim(); if(!/^\d{4}-\d{2}-\d{2}$/.test(s))return ''; if(isNaN(new Date(s+'T00:00:00').getTime()))return ''; return s; }
 
-// [CALC] Derive total, remaining, overpayment, and status from raw amounts
+// Derive total, remaining, overpayment, and status from raw amounts
 function buildDebt(principal,interest,paidSoFar) {
   var p=Math.max(0,Math.floor(+principal||0));
   var i=Math.max(0,Math.floor(+interest ||0));
@@ -262,7 +280,7 @@ function buildDebt(principal,interest,paidSoFar) {
   return { principal:p, interest:i, total:t, paid:pd, remaining:rm, overpayment:ov, status:rm===0?'paid':'active' };
 }
 
-// [DB] Map raw sheet row to debt object
+// Map raw sheet row array to debt object
 function rToDebt(row) {
   var n=row.length;
   var archIdx = DC.hasOwnProperty('archived') ? DC.archived : -1;
@@ -284,39 +302,38 @@ function rToDebt(row) {
   };
 }
 
-// [DB] Map raw sheet row to installment object
+// Map raw sheet row array to installment object
 function rToInst(row) {
   return {
     id:             sStr(row[IC.id],50),
     debt_id:        sStr(row[IC.debt_id],50),
     payment_amount: Math.max(0,Math.floor(+row[IC.payment_amount]||0)),
     payment_date:   fmtDate(row[IC.payment_date]),
-    created_at:     row.length>IC.created_at ? fmtDT(row[IC.created_at]) : ''
+    created_at:     row.length>IC.created_at ? fmtDT(row[IC.created_at]) : '',
+    notes:          row.length>IC.notes ? sNotes(row[IC.notes]) : ''
   };
 }
 
-// [PERF] Read value from script cache
+// Cache helpers — get, set, and invalidate script cache
 function cGet(k)     { try{var v=CacheService.getScriptCache().get(k);return v?JSON.parse(v):null;}catch(e){return null;} }
-// [PERF] Write value to script cache with TTL
 function cSet(k,v,t) { try{CacheService.getScriptCache().put(k,JSON.stringify(v),t||CACHE_TTL);}catch(e){} }
-// [PERF] Invalidate debts cache on any write operation
 function invalidateCache() { try{CacheService.getScriptCache().remove(CACHE_KEY);}catch(e){} }
 
-// [UTIL] Acquire exclusive script lock or throw on timeout
+// Acquire exclusive script lock or throw on timeout
 function acquireLock() {
   var lock=LockService.getScriptLock();
   try{lock.waitLock(LOCK_MS);return lock;}
   catch(e){throw new Error('Sistem sedang sibuk, coba lagi sebentar. ('+e.message+')');}
 }
-// [UTIL] Release lock safely, ignore errors
+// Release lock safely; ignores errors
 function releaseLock(lock) { try{if(lock)lock.releaseLock();}catch(e){} }
 
-// [CALC] Return zeroed summary object — includes archived key for frontend badge
+// Return zeroed summary object
 function defSummary() {
   return { totalHutang:0, totalPaid:0, totalSisa:0, totalOverpayment:0, aktif:0, lunas:0, total:0, archived:0 };
 }
 
-// [API] Fetch debts with optional search, pagination, and archive filter
+// Fetch debts with optional search, pagination, and archive filter
 function getDebts(params) {
   try {
     if(params.id) return _getSingle(sStr(String(params.id),50));
@@ -337,7 +354,7 @@ function getDebts(params) {
   } catch(err){ logError('getDebts',err); return {success:false,message:err.message,data:[],total:0,summary:defSummary()}; }
 }
 
-// [CALC] Filter, paginate, and compute summary from debt list
+// Filter, paginate, and compute summary from debt list
 function _page(all,page,limit,q,onlyArch,inclArch) {
   var base = onlyArch ? all.filter(function(d){ return !!d.archived; })
            : inclArch ? all
@@ -364,7 +381,7 @@ function _page(all,page,limit,q,onlyArch,inclArch) {
   return {success:true,data:slice,total:total,page:page,limit:limit,summary:s};
 }
 
-// [DB] Fetch single debt row with installment history
+// Fetch single debt row with its installment history
 function _getSingle(id) {
   try {
     var sh=getOrCreateSheet(SHEET_DEBTS), lr=sh.getLastRow();
@@ -382,7 +399,7 @@ function _getSingle(id) {
   } catch(err){ logError('_getSingle:'+id,err); return {success:false,message:err.message}; }
 }
 
-// [API] Create new debt record with validation
+// Create new debt record with validation
 function createDebt(params) {
   var lock=acquireLock();
   try {
@@ -412,7 +429,7 @@ function createDebt(params) {
   finally{ releaseLock(lock); }
 }
 
-// [API] Update debt fields and recalculate derived values
+// Update debt fields and recalculate derived values
 function updateDebt(params) {
   var lock=acquireLock();
   try {
@@ -449,7 +466,7 @@ function updateDebt(params) {
   finally{ releaseLock(lock); }
 }
 
-// [API] Delete debt and all associated installments atomically
+// Delete debt row and all associated installments atomically
 function deleteDebt(params) {
   var lock=acquireLock();
   try {
@@ -476,13 +493,14 @@ function deleteDebt(params) {
   } finally{ releaseLock(lock); }
 }
 
-// [API] Record payment installment and recalculate debt totals
+// Record payment installment with optional notes; recalculates debt totals
 function addPayment(params) {
   var lock=acquireLock(); var newInstId=null;
   try {
     var debtId=sStr(params.debt_id,50);
     var amount=sRp(params.payment_amount);
     var date  =sDate(params.payment_date)||todayWIB();
+    var notes =sNotes(params.notes||'');
     if(!debtId)   throw new Error('debt_id diperlukan');
     if(amount<=0) throw new Error('Jumlah pembayaran harus lebih dari 0');
     var dsh=getOrCreateSheet(SHEET_DEBTS), dlr=dsh.getLastRow();
@@ -494,7 +512,7 @@ function addPayment(params) {
     var iid=genInstId(ish), now=nowWIB();
     var irow=new Array(INST_HEADERS.length).fill('');
     irow[IC.id]=iid; irow[IC.debt_id]=debtId; irow[IC.payment_amount]=amount;
-    irow[IC.payment_date]=date; irow[IC.created_at]=now;
+    irow[IC.payment_date]=date; irow[IC.created_at]=now; irow[IC.notes]=notes;
     ish.appendRow(irow); newInstId=iid;
     invalidateCache();
     var res=_recalc(debtId,dsh);
@@ -515,7 +533,7 @@ function addPayment(params) {
   } finally{ releaseLock(lock); }
 }
 
-// [CALC] Sum all installments for a debt and write updated fields back to sheet
+// Sum all installments for a debt and write recalculated fields back to sheet
 function _recalc(debtId,dsh) {
   debtId=sStr(String(debtId),50);
   try {
@@ -559,7 +577,7 @@ function _recalc(debtId,dsh) {
   } catch(err){ logError('_recalc',err); return {success:false,message:err.message}; }
 }
 
-// [API] Archive a paid debt, exclude from dashboard
+// Set archived=true on a paid debt to exclude it from dashboard
 function archiveDebt(params) {
   var lock = acquireLock();
   try {
@@ -587,7 +605,7 @@ function archiveDebt(params) {
   finally { releaseLock(lock); }
 }
 
-// [API] Unarchive a debt, restore to active dashboard
+// Set archived=false on a debt to restore it to the active dashboard
 function unarchiveDebt(params) {
   var lock = acquireLock();
   try {
