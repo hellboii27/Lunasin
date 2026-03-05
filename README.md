@@ -28,11 +28,12 @@ Lunasin adalah aplikasi web mobile-first untuk mencatat, memantau, dan mengelola
 | 📊 **Dashboard** | Ringkasan total hutang, terbayar, dan sisa tagihan secara real-time |
 | ➕ **Tambah Utang** | Catat pokok pinjaman, bunga, jatuh tempo, dan keterangan |
 | 💳 **Catat Pembayaran** | Rekam cicilan dengan alokasi otomatis bunga vs. pokok |
+| ⚠️ **Denda Keterlambatan** | Tambah denda pada tagihan overdue — menambah total tagihan secara langsung, opsional |
 | 💰 **Deteksi Lebih Bayar** | Otomatis mendeteksi & menampilkan nominal kelebihan bayar |
 | 📋 **Riwayat Transaksi** | Daftar lengkap semua utang dengan search dan pagination |
 | 🗂️ **Arsip** | Simpan transaksi lunas ke arsip tanpa menghapus riwayat |
 | 🔍 **Pencarian** | Filter berdasarkan nama, keterangan, status (`aktif`, `lunas`, `lebih bayar`) |
-| 📈 **Detail & Timeline** | Grafik progress, komposisi pokok/bunga, dan timeline pembayaran per-utang |
+| 📈 **Detail & Timeline** | Grafik progress, kartu Pokok/Bunga/Total/Sisa/Denda, dan timeline pembayaran per-utang |
 | ↔️ **Swipe Gesture** | Geser kartu kanan/kiri untuk edit, hapus, atau arsip (mobile) |
 | 🔄 **Pull-to-Refresh** | Tarik ke bawah untuk memperbarui data dari spreadsheet |
 | 📱 **Full-Screen Mobile** | Dioptimasi untuk Android & iPhone, semua ukuran layar |
@@ -96,9 +97,7 @@ Di panel kiri editor, buat **5 file** berikut:
 | `Script.html` | Klik `+` → pilih **HTML** → beri nama `Script` | Isi file `Script.html` |
 | `ShareView.html` | Klik `+` → pilih **HTML** → beri nama `ShareView` | Isi file `ShareView.html` |
 
-> ⚠️ Nama file harus **sama persis** (case-sensitive). `Code.gs` memanggil `ShareView` — salah nama menyebabkan error deploy.
-
-> ⚠️ Nama file harus **sama persis** (case-sensitive). `Index.html` memanggil `Styles` dan `Script` via `include()` — salah nama menyebabkan error deploy.
+> ⚠️ Nama file harus **sama persis** (case-sensitive). `Code.gs` memanggil `ShareView` dan `Index` memanggil `Styles` dan `Script` via `include()` — salah nama menyebabkan error deploy.
 
 **4. Inisialisasi database**
 
@@ -140,7 +139,7 @@ Akses URL Web App di browser HP Anda. Untuk pengalaman terbaik, tambahkan ke Hom
 | `person_name` | String | Nama peminjam |
 | `principal_amount` | Number | Pokok pinjaman (Rupiah) |
 | `interest_amount` | Number | Bunga (Rupiah) |
-| `total_amount` | Number | Total = pokok + bunga |
+| `total_amount` | Number | Total = pokok + bunga + denda |
 | `paid_amount` | Number | Total terbayar |
 | `remaining_amount` | Number | Sisa tagihan |
 | `status` | String | `active` / `paid` |
@@ -150,6 +149,7 @@ Akses URL Web App di browser HP Anda. Untuk pengalaman terbaik, tambahkan ke Hom
 | `updated_at` | String | Timestamp terakhir diperbarui |
 | `overpayment_amount` | Number | Kelebihan bayar (jika ada) |
 | `archived` | Boolean | `true` jika diarsip |
+| `penalty_total` | Number | Akumulasi denda keterlambatan (jika ada) |
 
 ### Sheet: `installments`
 
@@ -160,6 +160,7 @@ Akses URL Web App di browser HP Anda. Untuk pengalaman terbaik, tambahkan ke Hom
 | `payment_amount` | Number | Jumlah pembayaran |
 | `payment_date` | String | Tanggal pembayaran `YYYY-MM-DD` |
 | `created_at` | String | Timestamp ISO 8601 |
+| `notes` | String | Catatan pembayaran (opsional) |
 
 ---
 
@@ -213,6 +214,10 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 }
 ```
 
+### `addPenalty`
+
+> Denda bersifat opsional dan hanya tersedia pada tagihan yang berstatus **overdue** (lewat jatuh tempo). Denda diakumulasi di kolom `penalty_total` dan langsung menambah `total_amount`.
+
 ### `deleteDebt` / `archiveDebt` / `unarchiveDebt`
 
 ```json
@@ -221,15 +226,10 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 { "action": "unarchiveDebt", "id": "DEBT-20250101-0001" }
 ```
 
-### `healthCheck`
+### `healthCheck` / `getAppUrl`
 
 ```json
 { "action": "healthCheck" }
-```
-
-### `getAppUrl`
-
-```json
 { "action": "getAppUrl" }
 ```
 
@@ -272,7 +272,7 @@ var SHEET_INST     = 'installments';  // Nama sheet cicilan
 
 ## 🧪 Mode Demo
 
-Saat diakses di luar Google Apps Script (misal: langsung buka `Index.html` di browser), aplikasi otomatis masuk **mode demo** dengan data contoh 12 utang. Tidak ada perubahan yang tersimpan ke spreadsheet.
+Saat diakses di luar Google Apps Script (misal: langsung buka `Index.html` di browser), aplikasi otomatis masuk **mode demo** dengan data contoh 12 utang termasuk simulasi denda. Tidak ada perubahan yang tersimpan ke spreadsheet.
 
 ---
 

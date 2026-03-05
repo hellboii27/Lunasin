@@ -1,6 +1,7 @@
 <script>
 'use strict';
 
+// [CONFIG] DOM element references
 var D = {
   ptr:    document.getElementById('ptr'),
   prtxt:  document.getElementById('ptr-txt'),
@@ -39,6 +40,7 @@ var D = {
   topbarSalin: document.getElementById('topbar-salin')
 };
 
+// [STATE] Application state
 var S = {
   page: 'dashboard',
   prevPage: 'dashboard',
@@ -57,51 +59,51 @@ var S = {
   _cacheTTL: 30000
 };
 
-// GAS call timeout — prevents UI hanging indefinitely
+// [CONFIG] GAS call timeout in ms
 var CALL_TIMEOUT_MS = 30000;
 
-// Format number to Rupiah display string
+// [UTIL] Format number to Rupiah display string
 var _rpFmt = new Intl.NumberFormat('id-ID');
 function fRp(v) { return 'Rp\u00a0' + _rpFmt.format(+v || 0); }
 
-// Active timezone from browser for date formatting and overdue checks
+// [CONFIG] Active timezone from browser
 var _TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-// Format date/datetime to local display string (dd Mon yyyy)
+// [UTIL] Format date/datetime to local display string (dd Mon yyyy)
 var _dtFmt = new Intl.DateTimeFormat('id-ID', {
   day: '2-digit', month: 'short', year: 'numeric',
   timeZone: _TZ
 });
 function fDt(d) {
-  if (!d) return '—';
+  if (!d) return '\u2014';
   var dt = (d instanceof Date) ? d : new Date(d);
   return isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt);
 }
 
-// Singleton Intl formatter — avoids re-creating on every _todayLocal() call
+// [PERF] Singleton Intl formatter for _todayLocal()
 var _todayFmt = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric', month: '2-digit', day: '2-digit', timeZone: _TZ
 });
 
-// Return today as yyyy-MM-dd in browser local timezone
+// [UTIL] Return today as yyyy-MM-dd in browser local timezone
 function _todayLocal() {
   var parts = _todayFmt.formatToParts(new Date()), p = {};
   parts.forEach(function(x) { p[x.type] = x.value; });
   return p.year + '-' + p.month + '-' + p.day;
 }
-// Check if due_date is overdue; re-evaluates today on each call, safe across midnight
+
+// [UTIL] Check if due_date is overdue; re-evaluates today on each call
 function isOD(due) { return due ? due < _todayLocal() : false; }
 
-// Calculate payment percentage, capped at 100
+// [UTIL] Calculate payment percentage capped at 100
 function pct(p, t) { t = +t; p = +p; return t ? Math.min(100, Math.round(p / t * 100)) : 0; }
 
-// Escape HTML special characters to prevent XSS in innerHTML
+// [SECURITY] Escape HTML special characters to prevent XSS in innerHTML
 function esc(s) {
   return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-
-// Haptic feedback via navigator.vibrate; silent no-op on iOS
+// [UX] Haptic feedback via navigator.vibrate; silent no-op on iOS
 function haptic(type) {
   try {
     if (!navigator.vibrate) return;
@@ -112,24 +114,25 @@ function haptic(type) {
   } catch(e) {}
 }
 
-// Extract up to two initials from full name
+// [UTIL] Extract up to two initials from full name
 function ini(n) {
   var a = String(n || '').trim().split(/\s+/);
   return a.length >= 2 ? (a[0][0] + a[1][0]).toUpperCase() : String(n || '').slice(0, 2).toUpperCase();
 }
 
-// Shorthand for getElementById
+// [UTIL] Shorthand for getElementById
 function g(id) { return document.getElementById(id); }
 
+// [INIT] Set date chip text on page load
 D.dchip.textContent = _dtFmt.format(new Date());
 
-// Parse raw string input to safe non-negative integer
+// [UTIL] Parse raw string input to safe non-negative integer
 function _rpInt(v) {
   var n = parseInt(String(v || 0).replace(/\D/g, ''), 10);
   return isNaN(n) ? 0 : Math.max(0, n);
 }
 
-// Init currency input with live Rupiah formatting and cursor correction
+// [UX] Init currency input with live Rupiah formatting and cursor correction
 function initCI(el, cb) {
   el.addEventListener('input', function() {
     var pos = el.selectionStart, old = el.value;
@@ -150,25 +153,25 @@ function initCI(el, cb) {
   });
 }
 
-// Read formatted currency input as raw integer
+// [UTIL] Read formatted currency input as raw integer
 function raw(id) { return _rpInt(g(id).dataset.raw); }
-// Reset currency input to empty
+// [UTIL] Reset currency input to empty
 function resetCI(id) { var e = g(id); e.value = ''; e.dataset.raw = '0'; }
-// Set currency input value programmatically
+// [UTIL] Set currency input value programmatically
 function setCI(id, val) {
   var e = g(id), n = _rpInt(val);
   e.value = n ? _rpFmt.format(n) : '';
   e.dataset.raw = String(n);
 }
 
-// Wrap google.script.run with timeout; falls back to demo() outside GAS
+// [API] Wrap google.script.run with timeout; falls back to demo() outside GAS
 function call(p, ok, fail) {
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     var done = false;
     var timer = setTimeout(function() {
       if (done) return;
       done = true;
-      if (fail) fail('Request timeout — server tidak merespons. Coba lagi.');
+      if (fail) fail('Request timeout \u2014 server tidak merespons. Coba lagi.');
     }, CALL_TIMEOUT_MS);
     google.script.run
       .withSuccessHandler(function(r) {
@@ -190,11 +193,11 @@ function call(p, ok, fail) {
   }
 }
 
-// Client-side sanitize name field
+// [SECURITY] Client-side sanitize name field
 function _sName(v) {
   return String(v || '').replace(/<[^>]*>/g, '').replace(/[<>"'`]/g, '').trim().slice(0, 200);
 }
-// Client-side sanitize notes field
+// [SECURITY] Client-side sanitize notes field
 function _sNotes(v) {
   return String(v || '')
     .replace(/<script[\s\S]*?<\/script>/gi, '')
@@ -204,17 +207,21 @@ function _sNotes(v) {
     .trim().slice(0, 1000);
 }
 
+// [CONFIG] Demo counter seed for ID generation
 var _demoCtr = 200;
+// [UTIL] Return today as yyyyMMdd string for demo ID prefix
 function _dateTag() {
   var d = new Date();
   return d.getFullYear()
     + ('0' + (d.getMonth() + 1)).slice(-2)
     + ('0' + d.getDate()).slice(-2);
 }
+// [UTIL] Generate unique demo debt ID
 function _demoDebtId() { return 'DEBT-' + _dateTag() + '-' + ('0000' + (++_demoCtr)).slice(-4); }
+// [UTIL] Generate unique demo installment ID
 function _demoInstId() { return 'INST-' + _dateTag() + '-' + ('0000' + (++_demoCtr)).slice(-4); }
 
-// Demo seed data — debts and installments
+// [CONFIG] Demo seed data — debts and installments
 var DD = [
   {id:'DEBT-20241201-0001',person_name:'Andi Wirawan',  principal_amount:5000000,interest_amount:500000, total_amount:5500000, paid_amount:2000000,remaining_amount:3500000,overpayment_amount:0,status:'active',due_date:'2025-09-01',created_at:'2024-12-01T10:00:00+07:00',updated_at:'2025-02-15T08:00:00+07:00',notes:'Pinjaman modal usaha warung'},
   {id:'DEBT-20250110-0002',person_name:'Siti Rahayu',   principal_amount:2000000,interest_amount:200000, total_amount:2200000, paid_amount:2500000,remaining_amount:0,overpayment_amount:300000,status:'paid',  due_date:'2025-03-01',created_at:'2025-01-10T09:00:00+07:00',updated_at:'2025-02-20T09:00:00+07:00',notes:'Keperluan sekolah anak'},
@@ -249,7 +256,7 @@ var DI = [
   {id:'INST-20250110-0016',debt_id:'DEBT-20241215-0012',payment_amount:880000, payment_date:'2025-01-10',created_at:'2025-01-10T10:00:00+07:00'}
 ];
 
-// Build dashboard summary totals from full debt list
+// [CALC] Build dashboard summary totals from full debt list
 function buildSummary(allDebts) {
   var all    = allDebts || [];
   var active = all.filter(function(d){ return !d.archived; });
@@ -267,7 +274,7 @@ function buildSummary(allDebts) {
   return s;
 }
 
-// Demo mode — simulate all backend actions in-memory with setTimeout delay
+// [API] Demo mode — simulate all backend actions in-memory
 function demo(p, ok, fail) {
   setTimeout(function() {
     try {
@@ -383,6 +390,20 @@ function demo(p, ok, fail) {
         DD[uidx].archived = false; DD[uidx].updated_at = new Date().toISOString();
         ok({ success:true, data:JSON.parse(JSON.stringify(DD[uidx])) });
       }
+      else if (action === 'addPenalty') {
+        var pidx = DD.findIndex(function(x) { return x.id === p.id; });
+        if (pidx < 0) { fail && fail('Tidak ditemukan'); return; }
+        var _pen = _rpInt(p.penalty_amount || 0);
+        if (pen <= 0) { fail && fail('Jumlah denda harus lebih dari 0'); return; }
+        var ddbt = DD[pidx];
+        ddbt.penalty_total   = (ddbt.penalty_total || 0) + _pen;
+        ddbt.total_amount    = ddbt.total_amount + _pen;
+        ddbt.remaining_amount = Math.max(0, ddbt.remaining_amount + _pen);
+        ddbt.overpayment_amount = ddbt.paid_amount > ddbt.total_amount ? ddbt.paid_amount - ddbt.total_amount : 0;
+        ddbt.status = ddbt.remaining_amount <= 0 ? 'paid' : 'active';
+        ddbt.updated_at = new Date().toISOString();
+        ok({ success:true, data:JSON.parse(JSON.stringify(ddbt)) });
+      }
       else if (action === 'healthCheck') {
         ok({ success:true, status:'healthy (demo)', spreadsheet:'Demo Mode',
              debts:DD.length, payments:DI.length,
@@ -393,7 +414,7 @@ function demo(p, ok, fail) {
   }, 450 + Math.random() * 200);
 }
 
-// Animated scroll to top — rAF ease-out cubic, targets #app for GAS iframe
+// [UX] Animated scroll to top — rAF ease-out cubic, targets #app for GAS iframe
 function _scrollTop(el, onDone) {
   var container = el || document.getElementById('app') || document.body;
   var start = container.scrollTop;
@@ -411,8 +432,7 @@ function _scrollTop(el, onDone) {
   requestAnimationFrame(step);
 }
 
-
-// Update overdue count badge on dashboard nav icon
+// [UI] Update overdue count badge on dashboard nav icon
 function updateODBadge() {
   var badge = document.getElementById('nav-od-badge');
   if (!badge) return;
@@ -421,7 +441,7 @@ function updateODBadge() {
   badge.classList.toggle('vis', count > 0);
 }
 
-// Navigate to named SPA page with slide transition
+// [UX] Navigate to named SPA page with slide transition
 function goPage(name) {
   if (S.busy || name === S.page) return;
   S.busy = true;
@@ -435,7 +455,7 @@ function goPage(name) {
   for (var i = 0; i < navItems.length; i++) navItems[i].classList.remove('active');
   g('nav-' + name).classList.add('active');
   D.fab.classList.toggle('hidden', name !== 'dashboard');
-  // On detail page: swap date/avatar for Salin button in top-bar
+  // [UI] Toggle top-bar elements: hide date/avatar on detail, show Salin button
   var _dc = document.getElementById('date-chip');
   var _hd = document.getElementById('health-dot');
   var _av = document.querySelector('.avatar');
@@ -459,13 +479,13 @@ function goPage(name) {
   }, 280);
 }
 
-// Delegated bottom-nav click — routes to correct page
+// [EVENT] Delegated bottom-nav click handler
 document.querySelector('.bottom-nav').addEventListener('click', function(e) {
   var b = e.target.closest('.nav-item');
   if (b) { haptic('light'); goPage(b.dataset.page); }
 });
 
-// Init pull-to-refresh touch gesture
+// [UX] Init pull-to-refresh touch gesture
 function initPullToRefresh() {
   var sy = 0, pull = false, th = 70, max = 100, refreshing = false;
   var ptr = D.ptr, txt = D.prtxt;
@@ -487,7 +507,7 @@ function initPullToRefresh() {
     if (!pull) return;
     var dy = e.changedTouches[0].clientY - sy; pull = false;
     if (dy >= th && !refreshing) {
-      refreshing = true; txt.textContent = 'Memperbarui…';
+      refreshing = true; txt.textContent = 'Memperbarui\u2026';
       refreshData(function() {
         ptr.style.height = ptr.style.paddingTop = ptr.style.paddingBottom = '0';
         ptr.classList.remove('ready'); txt.textContent = 'Tarik untuk refresh';
@@ -500,20 +520,20 @@ function initPullToRefresh() {
   }, { passive: true });
 }
 
-// Force cache bust and reload all debts, then sync dashboard UI
+// [STATE] Force cache bust and reload all debts; sync dashboard UI
 function refreshData(done) {
   S._cache.ts = 0;
   loadDebts(function() {
-    showToast('✅ Data diperbarui', 's');
+    showToast('\u2705 Data diperbarui', 's');
     if (S.page === 'transactions') loadTx();
     if (done) done();
   });
 }
 
-// In-flight guard — prevents concurrent loadDebts calls from racing
+// [STATE] In-flight guard — prevents concurrent loadDebts calls from racing
 var _loadingDebts = false;
 
-// Fetch all debts (including archived), populate S.debts and S.archivedDebts
+// [API] Fetch all debts including archived; populate state from cache or backend
 function loadDebts(done) {
   if (_loadingDebts) { if (done) setTimeout(done, 0); return; }
   _loadingDebts = true;
@@ -534,17 +554,17 @@ function loadDebts(done) {
     function(e) {
       _loadingDebts = false;
       D.dskel.style.display = 'none'; D.dbody.style.display = 'block';
-      D.dlist.innerHTML = '<div class="error-state"><div class="ic">⚠️</div><p>' + esc(e) + '</p>'
+      D.dlist.innerHTML = '<div class="error-state"><div class="ic">\u26a0\ufe0f</div><p>' + esc(e) + '</p>'
         + '<button class="error-retry" onclick="loadDebts()">Coba Lagi</button></div>';
       if (done) done();
     }
   );
 }
 
-// Handle for pending buildDebtCards — cancelled on rapid successive renderDash calls
+// [PERF] Handle for pending buildDebtCards call; cancelled on rapid renderDash calls
 var _buildCardsTimer = null;
 
-// Render dashboard hero stats and kick off debt card build
+// [UI] Render dashboard hero stats and debt card list
 function renderDash(debts, sum) {
   var th = sum.totalHutang || 0, tp = sum.totalPaid || 0, tr = sum.totalSisa || 0;
   var ca = sum.aktif || 0, cp = sum.lunas || 0, ct = sum.total;
@@ -577,10 +597,10 @@ function renderDash(debts, sum) {
   D.dskel.style.display = 'none'; D.dbody.style.display = 'block';
 }
 
-// Build and inject debt cards into dashboard list
+// [UI] Build and inject debt cards into dashboard list
 function buildDebtCards(debts) {
   if (!debts.length) {
-    D.dlist.innerHTML = '<div class="empty"><div class="ic">📄</div><p>Belum ada data utang.<br/>Klik ＋ untuk menambahkan.</p></div>';
+    D.dlist.innerHTML = '<div class="empty"><div class="ic">\ud83d\udcc4</div><p>Belum ada data utang.<br/>Klik \uff0b untuk menambahkan.</p></div>';
     return;
   }
   var frag = document.createDocumentFragment();
@@ -591,23 +611,23 @@ function buildDebtCards(debts) {
     var hasOv = (d.overpayment_amount || 0) > 0;
     var cls = 'debt-card l-enter' + (isPaid && !hasOv ? ' paid-c' : hasOv ? ' over-c' : od ? ' od-c' : '');
     var bdg = hasOv  ? '<span class="debt-badge bw">Lebih Bayar</span>'
-            : isPaid ? '<span class="debt-badge bp">✓ Lunas</span>'
-            : od     ? '<span class="debt-badge bo">⚠ Lewat</span>'
+            : isPaid ? '<span class="debt-badge bp">\u2713 Lunas</span>'
+            : od     ? '<span class="debt-badge bo">\u26a0 Lewat</span>'
             :          '<span class="debt-badge ba">Aktif</span>';
     var rc = isPaid ? 'var(--success)' : od ? 'var(--danger)' : 'var(--accent)';
     var el = document.createElement('div');
     el.className = cls; el.dataset.id = d.id;
     el.style.setProperty('--delay', Math.min(i * 25, 150) + 'ms');
 
-    var ovRow = '<div class="dc-ov-row"' + (hasOv ? '' : ' style="visibility:hidden"') + '><span class="dc-ov-lbl">Lebih Bayar</span><span class="dc-ov-val">' + (hasOv ? fRp(d.overpayment_amount) : '—') + '</span></div>';
+    var ovRow = '<div class="dc-ov-row"' + (hasOv ? '' : ' style="visibility:hidden"') + '><span class="dc-ov-lbl">Lebih Bayar</span><span class="dc-ov-val">' + (hasOv ? fRp(d.overpayment_amount) : '\u2014') + '</span></div>';
     el.innerHTML =
       '<div class="dc-head"><div class="debt-name">' + esc(d.person_name) + '</div>' + bdg + '</div>'
       + '<div class="dc-row"><span class="dc-lbl">Total Tagihan</span><span class="dc-val">' + fRp(d.total_amount) + '</span></div>'
       + '<div class="dc-row"><span class="dc-lbl">Sisa</span><span class="dc-val" style="color:' + rc + '">' + fRp(d.remaining_amount) + '</span></div>'
       + ovRow
       + '<div class="dc-meta">'
-      + '<span class="dc-note"' + (d.notes ? '' : ' style="visibility:hidden"') + '>' + (d.notes ? '📝 ' + esc(d.notes) : '&nbsp;') + '</span>'
-      + '<span class="dc-due"' + (d.due_date ? '' : ' style="visibility:hidden"') + '>' + (d.due_date ? '📅 <span class="' + (od ? 'ov' : 'ok') + '">' + fDt(d.due_date) + '</span>' : '&nbsp;') + '</span>'
+      + '<span class="dc-note"' + (d.notes ? '' : ' style="visibility:hidden"') + '>' + (d.notes ? '\ud83d\udcdd ' + esc(d.notes) : '&nbsp;') + '</span>'
+      + '<span class="dc-due"' + (d.due_date ? '' : ' style="visibility:hidden"') + '>' + (d.due_date ? '\ud83d\udcc5 <span class="' + (od ? 'ov' : 'ok') + '">' + fDt(d.due_date) + '</span>' : '&nbsp;') + '</span>'
       + '</div>'
       + '<div class="prog-wrap"><div class="prog-label"><span>Terbayar</span><span>' + p + '%</span></div>'
       + '<div class="prog-bg"><div class="prog-fill' + (isPaid ? ' done' : hasOv ? ' over' : '') + '" data-w="' + p + '" style="width:0%"></div></div></div>';
@@ -623,10 +643,10 @@ function buildDebtCards(debts) {
   });
 }
 
-// rAF handle registry — cancel stale countUp animations before starting new ones
+// [PERF] rAF handle registry — cancel stale countUp animations before new ones start
 var _rafHandles = {};
 
-// Animate number count-up with rAF cubic-ease; cancels stale animation on same element
+// [UI] Animate number count-up with rAF cubic-ease; cancels stale animation on same element
 function countUp(id, target, fmt) {
   var el = g(id); if (!el) return;
   if (_rafHandles[id]) { cancelAnimationFrame(_rafHandles[id]); _rafHandles[id] = null; }
@@ -645,13 +665,13 @@ function countUp(id, target, fmt) {
   _rafHandles[id] = requestAnimationFrame(tick);
 }
 
-// Delegated click handler for dashboard debt cards
+// [EVENT] Delegated click handler for dashboard debt cards
 D.dlist.addEventListener('click', function(e) {
   var c = e.target.closest('.debt-card');
   if (c && c.dataset.id) openDet(c.dataset.id);
 });
 
-// Switch between active and archived transaction tabs
+// [UX] Switch between active and archived transaction tabs
 function switchTxTab(tab) {
   S.txTab = tab; S.txPg = 1;
   S.q = ''; D.txsrch.value = ''; D.txclr.classList.remove('vis');
@@ -660,16 +680,16 @@ function switchTxTab(tab) {
   loadTx();
 }
 
-// Fetch transaction list for current tab; uses cached state if fresh
+// [API] Fetch transaction list for current tab; uses cached state if fresh
 function loadTx() {
-  D.txl.innerHTML = '<div class="lw"><div class="loader"></div><br/>Memuat…</div>';
+  D.txl.innerHTML = '<div class="lw"><div class="loader"></div><br/>Memuat\u2026</div>';
   D.txpag.style.display = 'none'; D.swh.style.display = 'none';
   var isArch = S.txTab === 'archived';
   var existingData = isArch ? S.archivedDebts : S.debts;
   if (existingData.length > 0 && S._cache.ts > 0 && (Date.now() - S._cache.ts) < S._cacheTTL) {
     var sum = buildSummary(S.debts.concat(S.archivedDebts));
     D.txCnt.textContent = isArch ? existingData.length : (sum.total || existingData.length);
-    D.txSum.textContent = isArch ? '—' : fRp(sum.totalPaid);
+    D.txSum.textContent = isArch ? '\u2014' : fRp(sum.totalPaid);
     D.txRat.textContent = isArch ? ('Diarsip: ' + existingData.length) : (sum.aktif + ' / ' + sum.lunas);
     S.filtered = existingData.slice(); S.txPg = 1; S.q = '';
     D.txsrch.value = ''; D.txclr.classList.remove('vis');
@@ -684,7 +704,7 @@ function loadTx() {
     var sum = r.summary || buildSummary(isArch ? [] : debts);
     S.serverTotal = r.total || debts.length;
     D.txCnt.textContent = isArch ? debts.length : (sum.total || debts.length);
-    D.txSum.textContent = isArch ? '—' : fRp(sum.totalPaid);
+    D.txSum.textContent = isArch ? '\u2014' : fRp(sum.totalPaid);
     D.txRat.textContent = isArch ? ('Diarsip: ' + debts.length) : (sum.aktif + ' / ' + sum.lunas);
     S.filtered = debts.slice(); S.txPg = 1; S.q = '';
     D.txsrch.value = ''; D.txclr.classList.remove('vis');
@@ -692,12 +712,12 @@ function loadTx() {
     renderTxPage();
     if (debts.length) D.swh.style.display = 'flex';
   }, function(e) {
-    D.txl.innerHTML = '<div class="error-state"><div class="ic">⚠️</div><p>' + esc(e) + '</p>'
+    D.txl.innerHTML = '<div class="error-state"><div class="ic">\u26a0\ufe0f</div><p>' + esc(e) + '</p>'
       + '<button class="error-retry" onclick="loadTx()">Coba Lagi</button></div>';
   });
 }
 
-// Render paginated transaction card list with swipe actions
+// [UI] Render paginated transaction card list with swipe actions
 function renderTxPage() {
   var data = S.filtered.slice();
   var pg = S.txPg, per = S.txPer, tot = data.length;
@@ -710,8 +730,8 @@ function renderTxPage() {
   D.txpag.style.display = tot ? 'flex' : 'none';
   if (!sl.length) {
     D.txl.innerHTML = S.q
-      ? '<div class="empty"><div class="ic">🔍</div><p>Tidak ada hasil untuk "' + esc(S.q) + '".</p></div>'
-      : '<div class="empty"><div class="ic">📭</div><p>Belum ada transaksi.</p></div>';
+      ? '<div class="empty"><div class="ic">\ud83d\udd0d</div><p>Tidak ada hasil untuk "' + esc(S.q) + '".</p></div>'
+      : '<div class="empty"><div class="ic">\ud83d\udced</div><p>Belum ada transaksi.</p></div>';
     return;
   }
   var parts = [];
@@ -723,21 +743,21 @@ function renderTxPage() {
     var hasOv = (d.overpayment_amount || 0) > 0;
     var isArchived = !!d.archived;
     var pill = isArchived ? '<span class="tc-pill arch-badge">&#128450;&#65039; Arsip</span>'
-             : hasOv     ? '<span class="tc-pill op-badge">💰 Lebih Bayar</span>'
-             : isPaid    ? '<span class="tc-pill bp">✓ Lunas</span>'
-             : od        ? '<span class="tc-pill bo">⚠ Lewat</span>'
+             : hasOv     ? '<span class="tc-pill op-badge">\ud83d\udcb0 Lebih Bayar</span>'
+             : isPaid    ? '<span class="tc-pill bp">\u2713 Lunas</span>'
+             : od        ? '<span class="tc-pill bo">\u26a0 Lewat</span>'
              :             '<span class="tc-pill ba">Aktif</span>';
     var leftBtn, rightBtn;
     if (S.txTab === 'archived') {
       leftBtn  = '<button class="sw-btn sw-edit" data-unarch="' + esc(d.id) + '"><span class="si">&#8617;&#65039;</span>Restore</button>';
-      rightBtn = '<button class="sw-btn sw-del"  data-del="'   + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
+      rightBtn = '<button class="sw-btn sw-del"  data-del="'   + esc(d.id) + '"><span class="si">\ud83d\uddd1\ufe0f</span>Hapus</button>';
     } else if (isPaid) {
-      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">✏️</span>Edit</button>';
+      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">\u270f\ufe0f</span>Edit</button>';
       rightBtn = '<button class="sw-btn sw-arch" data-arch="' + esc(d.id) + '"><span class="si">&#128450;&#65039;</span>Arsip</button>'
-               + '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
+               + '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">\ud83d\uddd1\ufe0f</span>Hapus</button>';
     } else {
-      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">✏️</span>Edit</button>';
-      rightBtn = '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">🗑️</span>Hapus</button>';
+      leftBtn  = '<button class="sw-btn sw-edit" data-edit="' + esc(d.id) + '"><span class="si">\u270f\ufe0f</span>Edit</button>';
+      rightBtn = '<button class="sw-btn sw-del"  data-del="'  + esc(d.id) + '"><span class="si">\ud83d\uddd1\ufe0f</span>Hapus</button>';
     }
 
     parts.push(
@@ -747,10 +767,10 @@ function renderTxPage() {
       + '<div class="tx-card" id="tc-' + esc(d.id) + '" data-id="' + esc(d.id) + '">'
       + '<div class="tc-top"><div class="tc-av">' + esc(av) + '</div>'
       + '<div class="tc-info"><div class="tc-name">' + esc(d.person_name) + '</div>'
-      + '<div class="tc-date">' + fDt(d.created_at) + (d.due_date ? ' · ' + fDt(d.due_date) : '') + '</div></div>'
+      + '<div class="tc-date">' + fDt(d.created_at) + (d.due_date ? ' \u00b7 ' + fDt(d.due_date) : '') + '</div></div>'
       + '<div class="tc-amt">' + fRp(d.paid_amount) + '</div></div>'
-      + '<div class="tc-notes"' + (d.notes ? '' : ' style="visibility:hidden"') + '>📝 ' + (d.notes ? esc(d.notes) : '—') + '</div>'
-      + '<div class="tc-ov-row"' + (hasOv ? '' : ' style="visibility:hidden"') + '><span class="tc-ov-lbl">💰 Lebih Bayar</span><span class="tc-ov-val">' + (hasOv ? fRp(d.overpayment_amount) : '—') + '</span></div>'
+      + '<div class="tc-notes"' + (d.notes ? '' : ' style="visibility:hidden"') + '>\ud83d\udcdd ' + (d.notes ? esc(d.notes) : '\u2014') + '</div>'
+      + '<div class="tc-ov-row"' + (hasOv ? '' : ' style="visibility:hidden"') + '><span class="tc-ov-lbl">\ud83d\udcb0 Lebih Bayar</span><span class="tc-ov-val">' + (hasOv ? fRp(d.overpayment_amount) : '\u2014') + '</span></div>'
       + '<div class="tc-prog"><div class="tc-pb"><div class="tc-pf' + (isPaid ? ' done' : '') + '" data-w="' + p + '" style="width:0%"></div></div>'
       + '<span class="tc-pct">' + p + '%</span></div>'
       + '<div class="tc-bot"><div><div class="tc-rl">Sisa Tagihan</div><div class="tc-rv" style="color:' + rc + '">' + fRp(d.remaining_amount) + '</div></div>' + pill + '</div>'
@@ -765,10 +785,10 @@ function renderTxPage() {
   });
 }
 
-// Track currently open swipe wrap ID
+// [STATE] Track currently open swipe wrap ID
 var _openSwipe = null;
 
-// Snap all open swipe cards back to center
+// [UX] Snap all open swipe cards back to center
 function closeAllSwipes() {
   if (!_openSwipe) return;
   var wrap = g('sw-' + _openSwipe);
@@ -784,10 +804,10 @@ function closeAllSwipes() {
   _openSwipe = null;
 }
 
-// WeakMap tracks swipe listeners per card — removed on each re-render
+// [PERF] WeakMap tracks swipe listeners per card — removed on each re-render
 var _swipeListeners = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 
-// Attach touch swipe gesture: left reveals delete/archive, right reveals edit/restore
+// [UX] Attach touch swipe gesture: left reveals delete/archive, right reveals edit/restore
 function initSwipeGesture(id) {
   var wrap = g('sw-' + id);
   if (!wrap) return;
@@ -805,7 +825,7 @@ function initSwipeGesture(id) {
     }
   }
 
-  // Swipe snap threshold in px
+  // [CONFIG] Swipe snap threshold in px
   var SNAP_THRESHOLD = 50;
 
   var startX = 0, startY = 0, curX = 0, dragging = false, lockAxis = null;
@@ -879,7 +899,7 @@ function initSwipeGesture(id) {
   }
 }
 
-// Delegated click handler for tx list: delete, edit, archive, unarchive, open
+// [EVENT] Delegated click handler for tx list: delete, edit, archive, unarchive, open
 D.txl.addEventListener('click', function(e) {
   var del    = e.target.closest('[data-del]');
   var edit   = e.target.closest('[data-edit]');
@@ -893,14 +913,14 @@ D.txl.addEventListener('click', function(e) {
   if (card && card.dataset.id) openDet(card.dataset.id);
 });
 
-// Pagination prev — scroll to top then render previous page
+// [EVENT] Pagination prev — scroll to top then render previous page
 D.txprev.addEventListener('click', function() {
   if (S.txPg > 1) {
     S.txPg--;
     _scrollTop(null, function() { renderTxPage(); });
   }
 });
-// Pagination next — scroll to top then render next page
+// [EVENT] Pagination next — scroll to top then render next page
 D.txnext.addEventListener('click', function() {
   var tp = Math.max(1, Math.ceil(S.filtered.length / S.txPer));
   if (S.txPg < tp) {
@@ -909,7 +929,7 @@ D.txnext.addEventListener('click', function() {
   }
 });
 
-// Debounced search — filters in-memory debt state on input
+// [UX] Debounced search — filters in-memory debt state on input
 var _searchTimer;
 D.txsrch.addEventListener('input', function() {
   var q = this.value.trim().toLowerCase(); S.q = q;
@@ -928,13 +948,14 @@ D.txsrch.addEventListener('input', function() {
     S.txPg = 1; renderTxPage();
   }, 260);
 });
+// [EVENT] Search clear button — resets query and re-renders
 D.txclr.addEventListener('click', function() {
   D.txsrch.value = ''; S.q = ''; D.txclr.classList.remove('vis');
   var _clrSrc = S.txTab === 'archived' ? S.archivedDebts : S.debts;
   S.filtered = _clrSrc.slice(); S.txPg = 1; renderTxPage();
 });
 
-// Open delete confirmation dialog with debt name label
+// [EVENT] Open delete confirmation dialog with debt name label
 function handleSwipeDelete(id) {
   haptic('medium'); closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; })
@@ -944,7 +965,7 @@ function handleSwipeDelete(id) {
   g('confirm-del').classList.add('open');
 }
 
-// Open edit modal pre-filled with existing debt data
+// [EVENT] Open edit modal pre-filled with existing debt data
 function handleSwipeEdit(id) {
   closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; })
@@ -964,7 +985,7 @@ function handleSwipeEdit(id) {
   openM('modal-edit');
 }
 
-// Open archive confirmation dialog; validates paid status
+// [EVENT] Open archive confirmation dialog; validates paid status
 function handleSwipeArchive(id) {
   closeAllSwipes();
   var d = S.debts.find(function(x) { return x.id === id; });
@@ -975,7 +996,7 @@ function handleSwipeArchive(id) {
   document.getElementById('confirm-arch').classList.add('open');
 }
 
-// Unarchive debt with optimistic UI update and server rollback
+// [EVENT] Unarchive debt with optimistic UI update and server rollback
 function doUnarchive(id) {
   var idx = S.archivedDebts.findIndex(function(x){ return x.id === id; });
   var snapD = S.debts.slice(), snapA = S.archivedDebts.slice();
@@ -988,7 +1009,7 @@ function doUnarchive(id) {
   renderTxPage();
   call({ action:'unarchiveDebt', id:id },
     function() {
-      showToast('↩️ Transaksi berhasil direstore', 's');
+      showToast('\u21a9\ufe0f Transaksi berhasil direstore', 's');
       if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
       S._cache.ts = 0;
       if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
@@ -1003,7 +1024,7 @@ function doUnarchive(id) {
   );
 }
 
-// Optimistic remove — clear card from DOM immediately
+// [STATE] Optimistic remove — clear card from DOM immediately
 function optimisticRemove(id) {
   var swWrap = g('sw-' + id);
   if (swWrap) { swWrap.remove(); }
@@ -1012,8 +1033,9 @@ function optimisticRemove(id) {
   if (dCard) dCard.classList.add('removing');
 }
 
-// Optimistic update — patch debt in state and re-filter
+// [STATE] Optimistic update — patch debt in state and re-filter
 function optimisticUpdateLocal(debt) {
+  if (!debt || !debt.id) return;
   var idx = S.debts.findIndex(function(x) { return x.id === debt.id; });
   if (idx >= 0) {
     S.debts[idx] = debt;
@@ -1032,17 +1054,18 @@ function optimisticUpdateLocal(debt) {
   }) : src.slice();
 }
 
-// Optimistic add — prepend new debt to state
+// [STATE] Optimistic add — prepend new debt to state
 function optimisticAdd(debt) {
   S.debts.unshift(debt);
   S.filtered = S.q ? S.filtered : S.debts.slice();
 }
 
-// Open and close modal overlay
+// [UX] Open modal overlay
 function openM(id)  { g(id).classList.add('open'); }
+// [UX] Close modal overlay
 function closeM(id) { g(id).classList.remove('open'); }
 
-// Close modal on backdrop click
+// [EVENT] Close modal on backdrop click
 document.addEventListener('click', function(e) {
   var modals = document.querySelectorAll('.modal-ov.open');
   for (var i = 0; i < modals.length; i++) {
@@ -1050,23 +1073,25 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// [EVENT] FAB open create modal; cancel button close
 D.fab.addEventListener('click', function() { haptic('light'); openM('modal-create'); });
 g('btn-create-x').addEventListener('click', function() { closeM('modal-create'); });
 
-// Update total preview in create form
+// [UI] Update total preview in create form
 function updatePrev() {
   var p = raw('inp-prin'), i = raw('inp-int'), pv = g('c-prev');
   if (p + i > 0) { pv.style.display = 'block'; g('c-tot').textContent = fRp(p + i); }
   else pv.style.display = 'none';
 }
 
-// Update total preview in edit form
+// [UI] Update total preview in edit form
 function updateEditPrev() {
   var p = raw('edit-prin'), i = raw('edit-int'), pv = g('edit-prev');
   if (p + i > 0) { pv.style.display = 'block'; g('edit-tot').textContent = fRp(p + i); }
   else pv.style.display = 'none';
 }
 
+// [EVENT] Create debt form submit
 g('btn-create').addEventListener('click', function() {
   var name  = _sName(g('inp-name').value);
   var pr    = raw('inp-prin'), ir = raw('inp-int'), due = g('inp-due').value;
@@ -1075,7 +1100,7 @@ g('btn-create').addEventListener('click', function() {
   if (!pr)   { haptic('error'); showToast('Pokok harus lebih dari 0', 'e'); return; }
 
   var btn = this;
-  btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
+  btn.innerHTML = '<div class="loader"></div> Menyimpan\u2026'; btn.disabled = true;
 
   var tempId = 'tmp-' + Date.now();
   var optimistic = {
@@ -1090,7 +1115,7 @@ g('btn-create').addEventListener('click', function() {
     function(res) {
       btn.textContent = 'Simpan Utang'; btn.disabled = false;
       haptic('light'); closeM('modal-create');
-      showToast('✅ Utang berhasil ditambahkan!', 's');
+      showToast('\u2705 Utang berhasil ditambahkan!', 's');
       var idx = S.debts.findIndex(function(x) { return x.id === tempId; });
       if (idx >= 0) S.debts[idx] = res.data; else S.debts.unshift(res.data);
       S.filtered = S.q ? S.filtered : S.debts.slice();
@@ -1114,9 +1139,11 @@ g('btn-create').addEventListener('click', function() {
   );
 });
 
+// [INIT] Bind currency inputs for edit form with preview callback
 initCI(g('edit-prin'), updateEditPrev);
 initCI(g('edit-int'),  updateEditPrev);
 
+// [EVENT] Edit debt form submit
 g('btn-edit-save').addEventListener('click', function() {
   var id    = g('edit-id').value;
   var name  = _sName(g('edit-name').value);
@@ -1127,7 +1154,7 @@ g('btn-edit-save').addEventListener('click', function() {
   if (!pr)   { showToast('Pokok harus lebih dari 0', 'e'); return; }
 
   var btn = this;
-  btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
+  btn.innerHTML = '<div class="loader"></div> Menyimpan\u2026'; btn.disabled = true;
 
   var prev = S.debts.find(function(x) { return x.id === id; })
           || S.archivedDebts.find(function(x) { return x.id === id; });
@@ -1150,7 +1177,7 @@ g('btn-edit-save').addEventListener('click', function() {
     function(res) {
       btn.textContent = 'Simpan Perubahan'; btn.disabled = false;
       haptic('light'); closeM('modal-edit');
-      showToast('✅ Data berhasil diperbarui!', 's');
+      showToast('\u2705 Data berhasil diperbarui!', 's');
       optimisticUpdateLocal(res.data);
       S._cache.ts = 0;
       if (S.page === 'transactions') renderTxPage();
@@ -1166,18 +1193,23 @@ g('btn-edit-save').addEventListener('click', function() {
     }
   );
 });
+// [EVENT] Edit modal cancel button
 g('btn-edit-x').addEventListener('click', function() { closeM('modal-edit'); });
 
+// [EVENT] Archive confirmation cancel and backdrop
 document.getElementById('arch-cancel').addEventListener('click', function() {
   document.getElementById('confirm-arch').classList.remove('open'); S.pendingArch = null;
 });
+// [EVENT] Archive confirm backdrop dismiss
 document.getElementById('confirm-arch').addEventListener('click', function(e) {
   if (e.target === this) { this.classList.remove('open'); S.pendingArch = null; }
 });
+
+// [EVENT] Archive confirmation submit
 document.getElementById('arch-confirm').addEventListener('click', function() {
   if (!S.pendingArch) return;
   var id = S.pendingArch.id, btn = this;
-  btn.innerHTML = '<div class="loader"></div> Mengarsip…'; btn.disabled = true;
+  btn.innerHTML = '<div class="loader"></div> Mengarsip\u2026'; btn.disabled = true;
   var snapD = S.debts.slice(), snapA = S.archivedDebts.slice();
   var idx = S.debts.findIndex(function(x){ return x.id === id; });
   if (idx >= 0) {
@@ -1190,7 +1222,7 @@ document.getElementById('arch-confirm').addEventListener('click', function() {
     function() {
       btn.textContent = 'Arsipkan'; btn.disabled = false;
       document.getElementById('confirm-arch').classList.remove('open'); S.pendingArch = null;
-      showToast('🗂️ Transaksi berhasil diarsip', 's');
+      showToast('\ud83d\uddc2\ufe0f Transaksi berhasil diarsip', 's');
       if (D.archBadge) D.archBadge.textContent = S.archivedDebts.length > 0 ? '('+S.archivedDebts.length+')' : '';
       S._cache.ts = 0;
       if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
@@ -1206,14 +1238,17 @@ document.getElementById('arch-confirm').addEventListener('click', function() {
   );
 });
 
+// [EVENT] Delete confirmation cancel and backdrop
 g('del-cancel').addEventListener('click', function() {
   g('confirm-del').classList.remove('open'); S.pendingDel = null;
 });
+// [EVENT] Delete confirm backdrop dismiss
 g('confirm-del').addEventListener('click', function(e) {
   if (e.target === this) { this.classList.remove('open'); S.pendingDel = null; }
 });
 var _pendingDelTimer = null;
 
+// [EVENT] Delete confirmation submit with 5-second undo window
 g('del-confirm').addEventListener('click', function() {
   var id = S.pendingDel; if (!id) return;
   haptic('medium');
@@ -1240,9 +1275,9 @@ g('del-confirm').addEventListener('click', function() {
   if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
   updateODBadge();
 
-  // 5-second undo window before committing delete to server
+  // [UX] 5-second undo window before committing delete to server
   if (_pendingDelTimer) clearTimeout(_pendingDelTimer);
-  showToast('🗑️ ' + name + ' dihapus', 's', function() {
+  showToast('\ud83d\uddd1\ufe0f ' + name + ' dihapus', 's', function() {
     clearTimeout(_pendingDelTimer); _pendingDelTimer = null;
     S.debts = snapshotDebts; S.archivedDebts = snapshotArch;
     S.filtered = (S.txTab === 'archived' ? S.archivedDebts : S.debts).slice();
@@ -1251,7 +1286,7 @@ g('del-confirm').addEventListener('click', function() {
     if (S.page === 'transactions') renderTxPage();
     if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
     updateODBadge();
-    showToast('↩️ Penghapusan dibatalkan', 's');
+    showToast('\u21a9\ufe0f Penghapusan dibatalkan', 's');
   });
 
   _pendingDelTimer = setTimeout(function() {
@@ -1262,7 +1297,7 @@ g('del-confirm').addEventListener('click', function() {
         S._cache.ts = 0;
         if (S.selId === id) {
           S.selId = null;
-          D.det.innerHTML = '<div class="det-ph"><div class="ic">🗑️</div><p>Transaksi sudah dihapus.</p></div>';
+          D.det.innerHTML = '<div class="det-ph"><div class="ic">\ud83d\uddd1\ufe0f</div><p>Transaksi sudah dihapus.</p></div>';
         }
       },
       function(e) {
@@ -1277,35 +1312,99 @@ g('del-confirm').addEventListener('click', function() {
   }, 5000);
 });
 
-g('btn-pay-x').addEventListener('click', function() { closeM('modal-pay'); var n=g('inp-pay-notes'); if(n)n.value=''; });
+// [EVENT] Payment modal cancel button
+g('btn-pay-x').addEventListener('click', function() {
+  closeM('modal-pay');
+  var n = g('inp-pay-notes'); if (n) n.value = '';
+});
 
-// Open payment modal pre-filled with debt context
+// [UI] Open penalty modal pre-filled with overdue debt context
+function openPenalty(debtId) {
+  var d = S.debts.find(function(x) { return x.id === debtId; });
+  if (!d) return;
+  g('penalty-id').value         = debtId;
+  g('penalty-name').textContent = d.person_name;
+  g('penalty-due').textContent  = fDt(d.due_date);
+  resetCI('inp-penalty');
+  openM('modal-penalty');
+}
+
+// [EVENT] Penalty modal cancel button
+g('btn-penalty-x').addEventListener('click', function() { closeM('modal-penalty'); });
+
+// [EVENT] Penalty form submit — adds penalty to debt total
+g('btn-penalty-save').addEventListener('click', function() {
+  var id      = g('penalty-id').value;
+  var penalty = raw('inp-penalty');
+  if (!penalty) { showToast('Masukkan jumlah denda', 'e'); return; }
+
+  var btn = this;
+  btn.innerHTML = '<div class="loader"></div> Menyimpan\u2026'; btn.disabled = true;
+
+  // [CALC] Optimistic: bump total_amount and remaining_amount by penalty
+  var snapshot = JSON.parse(JSON.stringify(S.debts));
+  var debt = S.debts.find(function(x) { return x.id === id; });
+  if (debt) {
+    var opt = Object.assign({}, debt);
+    opt.penalty_total   = (opt.penalty_total || 0) + penalty;
+    opt.total_amount    = opt.total_amount + penalty;
+    opt.remaining_amount = Math.max(0, opt.remaining_amount + penalty);
+    optimisticUpdateLocal(opt);
+  }
+
+  call({ action:'addPenalty', id:id, penalty_amount:penalty },
+    function(res) {
+      btn.textContent = 'Tambahkan Denda'; btn.disabled = false;
+      haptic('medium'); closeM('modal-penalty');
+      showToast('\u26a0\ufe0f Denda ' + fRp(penalty) + ' ditambahkan ke tagihan', 'w');
+      optimisticUpdateLocal(res.data);
+      S._cache.ts = 0;
+      if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
+      if (S.selId === id) renderDetail(id);
+    },
+    function(e) {
+      btn.textContent = 'Tambahkan Denda'; btn.disabled = false;
+      showToast('Gagal: ' + e, 'e');
+      S.debts = snapshot;
+      S.filtered = S.q ? S.filtered : S.debts.slice();
+      var _snap = snapshot.find(function(x){return x.id===id;});
+      if (_snap) optimisticUpdateLocal(_snap);
+    }
+  );
+});
+
+// [UI] Open payment modal pre-filled with debt context
 function openPay(debtId, remaining) {
   var d = S.debts.find(function(x) { return x.id === debtId; })
        || S.archivedDebts.find(function(x) { return x.id === debtId; });
-  g('pay-id').value            = debtId;
-  g('pay-name').textContent    = d ? d.person_name : '';
+  g('pay-id').value         = debtId;
+  g('pay-name').textContent = d ? d.person_name : '';
   resetCI('inp-pay');
-  g('inp-paydate').value       = _todayLocal();
-  g('pay-rem').textContent     = fRp(remaining || 0);
+  g('inp-paydate').value    = _todayLocal();
+  g('pay-rem').textContent  = fRp(remaining || 0);
   openM('modal-pay');
 }
 
+// [EVENT] Payment form submit
 g('btn-pay').addEventListener('click', function() {
-  var did = g('pay-id').value, amt = raw('inp-pay'), dt = g('inp-paydate').value;
-  var payNotes = (g('inp-pay-notes') ? g('inp-pay-notes').value.trim().slice(0,300) : '');
+  var did      = g('pay-id').value;
+  var amt      = raw('inp-pay');
+  var dt       = g('inp-paydate').value;
+  var payNotes = (g('inp-pay-notes') ? g('inp-pay-notes').value.trim().slice(0, 300) : '');
   if (!amt) { showToast('Masukkan jumlah pembayaran', 'e'); return; }
-  var btn = this;
-  btn.innerHTML = '<div class="loader"></div> Menyimpan…'; btn.disabled = true;
 
+  var btn = this;
+  btn.innerHTML = '<div class="loader"></div> Menyimpan\u2026'; btn.disabled = true;
+
+  // [CALC] Optimistic update: paid += payment amount only
   var snapshot = JSON.parse(JSON.stringify(S.debts));
   var debt = S.debts.find(function(x) { return x.id === did; });
   if (debt) {
-    var opt = Object.assign({}, debt);
-    var newPaidOpt       = Math.max(0, (opt.paid_amount || 0)) + amt;
-    opt.paid_amount        = newPaidOpt;
-    opt.remaining_amount   = Math.max(0, (opt.total_amount || 0) - newPaidOpt);
-    opt.overpayment_amount = newPaidOpt > (opt.total_amount || 0) ? newPaidOpt - (opt.total_amount || 0) : 0;
+    var opt     = Object.assign({}, debt);
+    var newPaid = Math.max(0, (opt.paid_amount || 0)) + amt;
+    opt.paid_amount        = newPaid;
+    opt.remaining_amount   = Math.max(0, (opt.total_amount || 0) - newPaid);
+    opt.overpayment_amount = newPaid > (opt.total_amount || 0) ? newPaid - (opt.total_amount || 0) : 0;
     opt.status             = opt.remaining_amount <= 0 ? 'paid' : 'active';
     optimisticUpdateLocal(opt);
   }
@@ -1315,7 +1414,7 @@ g('btn-pay').addEventListener('click', function() {
       btn.textContent = 'Catat Pembayaran'; btn.disabled = false;
       haptic('light'); closeM('modal-pay');
       var _pnf = g('inp-pay-notes'); if (_pnf) _pnf.value = '';
-      showToast('✅ Pembayaran berhasil dicatat!', 's');
+      showToast('\u2705 Pembayaran berhasil dicatat!', 's');
       S._cache.ts = 0;
       if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
       if (S.selId === did) renderDetail(did);
@@ -1329,16 +1428,15 @@ g('btn-pay').addEventListener('click', function() {
   );
 });
 
-
-// Relay Salin button click from top-bar to copyDebtLink
+// [UX] Relay Salin button click from top-bar to copyDebtLink
 function topbarSalin() {
   if (S.selId) copyDebtLink(S.selId);
 }
 
-// Cache deployed app URL after first fetch to avoid repeat GAS calls
+// [PERF] Cache deployed app URL after first fetch to avoid repeat GAS calls
 var _appUrl = null;
 
-// Copy shareable debt link; fetches deploy URL from backend on first use
+// [API] Copy shareable debt link; fetches deploy URL from backend on first use
 function copyDebtLink(id) {
   haptic('light');
   if (_appUrl) { _doCopy(_appUrl, id); return; }
@@ -1353,33 +1451,33 @@ function copyDebtLink(id) {
   });
 }
 
-// Build URL with ?id= param and write to clipboard
+// [UTIL] Build URL with ?id= param and write to clipboard
 function _doCopy(base, id) {
   var url = base + '?id=' + encodeURIComponent(id);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(function() {
-      showToast('🔗 Link disalin ke clipboard!', 'i');
+      showToast('\ud83d\udd17 Link disalin ke clipboard!', 'i');
     }).catch(function() { _fallbackCopy(url); });
   } else { _fallbackCopy(url); }
 }
 
-// Fallback clipboard copy via temporary textarea for older browsers
+// [UTIL] Fallback clipboard copy via temporary textarea
 function _fallbackCopy(text) {
   var ta = document.createElement('textarea');
   ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
   document.body.appendChild(ta); ta.select();
-  try { document.execCommand('copy'); showToast('🔗 Link disalin ke clipboard!', 'i'); }
+  try { document.execCommand('copy'); showToast('\ud83d\udd17 Link disalin ke clipboard!', 'i'); }
   catch(e) { showToast('Tidak bisa menyalin link', 'e'); }
   document.body.removeChild(ta);
 }
 
-// Set selected debt ID and navigate to detail page
+// [UX] Set selected debt ID and navigate to detail page
 function openDet(id) { S.selId = id; goPage('detail'); }
 
-// Generation counter — stale closures bail out if this has changed
+// [STATE] Generation counter — stale closures bail out if this has changed
 var _detailGen = 0;
 
-// Fetch and render full debt detail with animated ring and payment timeline
+// [UI] Fetch and render full debt detail with animated ring and payment timeline
 function renderDetail(id) {
   var el = D.det;
   var myGen = ++_detailGen;
@@ -1403,12 +1501,12 @@ function renderDetail(id) {
       var intPct = tot ? Math.round(ir / tot * 100) : 0, priPct = 100 - intPct;
       var doff   = (1 - p / 100) * 188.5;
       var rCls   = isPaid ? 'pr' : od ? 'or' : 'ar';
-      var bdg    = isPaid ? '<span class="debt-badge bp">✓ Lunas</span>'
-                 : od    ? '<span class="debt-badge bo">⚠ Lewat</span>'
+      var bdg    = isPaid ? '<span class="debt-badge bp">\u2713 Lunas</span>'
+                 : od    ? '<span class="debt-badge bo">\u26a0 Lewat</span>'
                  :         '<span class="debt-badge ba">Aktif</span>';
 
       var h = '<div>';
-      h += '<button class="back-btn" id="det-back">← Kembali</button>';
+      h += '<button class="back-btn" id="det-back">\u2190 Kembali</button>';
       h += '<div class="det-hero"><div class="dh-top">';
       h += '<div style="display:flex;align-items:flex-start;gap:14px;flex:1">';
       h += '<div class="dh-av">' + esc(ini(d.person_name)) + '</div>';
@@ -1431,41 +1529,61 @@ function renderDetail(id) {
         h += '</div>';
       }
       if (d.notes) {
-        h += '<div class="det-notes"><strong>📝 Keterangan</strong>' + esc(d.notes) + '</div>';
+        h += '<div class="det-notes"><strong>\ud83d\udcdd Keterangan</strong>' + esc(d.notes) + '</div>';
       }
       var ov = +d.overpayment_amount || 0;
       if (ov > 0) {
         h += '<div class="det-ov">';
-        h += '<div class="det-ov-label">💰 Kelebihan Bayar</div>';
+        h += '<div class="det-ov-label">\ud83d\udcb0 Kelebihan Bayar</div>';
         h += '<div class="det-ov-amount">' + fRp(ov) + '</div>';
         h += '<div class="det-ov-note">Pembayaran melebihi total pinjaman. Dana ini dapat dikembalikan atau dialihkan.</div>';
         h += '</div>';
       }
+      // [CALC] Penalty allocation display
+      var penTot  = +d.penalty_total || 0;
       h += '<div class="bkd-grid">';
-      h += '<div class="bkd-item bi-po"><div class="bkd-label">🏦 Pokok</div><div class="bkd-val">' + fRp(pr) + '</div><div class="bkd-sub">' + fRp(pPaid) + ' terbayar</div></div>';
-      h += '<div class="bkd-item bi-bu"><div class="bkd-label">💹 Bunga</div><div class="bkd-val">' + fRp(ir) + '</div><div class="bkd-sub">' + fRp(iPaid) + ' terbayar</div></div>';
-      h += '<div class="bkd-item bi-to"><div class="bkd-label">📋 Total</div><div class="bkd-val" style="color:var(--accent2)">' + fRp(tot) + '</div><div class="bkd-sub">' + p + '% terlunasi</div></div>';
-      h += '<div class="bkd-item bi-si"><div class="bkd-label">⏳ Sisa</div><div class="bkd-val" style="color:' + (isPaid ? 'var(--success)' : od ? 'var(--danger)' : 'var(--warn)') + '">' + fRp(rem) + '</div><div class="bkd-sub">' + (isPaid ? 'Selesai ✓' : insts.length + ' pembayaran') + '</div></div>';
+      h += '<div class="bkd-item bi-po"><div class="bkd-label">\ud83c\udfe6 Pokok</div><div class="bkd-val">' + fRp(pr) + '</div><div class="bkd-sub">' + fRp(pPaid) + ' terbayar</div></div>';
+      h += '<div class="bkd-item bi-bu"><div class="bkd-label">\ud83d\udcc9 Bunga</div><div class="bkd-val">' + fRp(ir) + '</div><div class="bkd-sub">' + fRp(iPaid) + ' terbayar</div></div>';
+      h += '<div class="bkd-item bi-to"><div class="bkd-label">\ud83d\udccb Total</div><div class="bkd-val" style="color:var(--accent2)">' + fRp(tot) + '</div><div class="bkd-sub">' + p + '% terlunasi</div></div>';
+      h += '<div class="bkd-item bi-si"><div class="bkd-label">\u23f3 Sisa</div><div class="bkd-val" style="color:' + (isPaid ? 'var(--success)' : od ? 'var(--danger)' : 'var(--warn)') + '">' + fRp(rem) + '</div><div class="bkd-sub">' + (isPaid ? 'Selesai \u2713' : insts.length + ' pembayaran') + '</div></div>';
       h += '</div>';
+      // [UI] Penalty Card
+      if (penTot > 0) {
+        h += '<div class="penalty-card-wrap">';
+        h += '<div class="penalty-card-inner">';
+        h += '<div class="penalty-card-left">';
+        h += '<div class="penalty-card-label">\u26a0\ufe0f Denda</div>';
+        h += '<div class="penalty-card-amount">' + fRp(penTot) + '</div>';
+        h += '</div>';
+        h += '<div class="penalty-card-right">Denda Keterlambatan<br/>Menambah total tagihan</div>';
+        h += '</div>';
+        h += '</div>';
+      }
+      // [UI] Komposisi Pinjaman — SAAT INI DISEMBUNYIKAN, hapus komentar  /*  &  */  dibawah ini untuk menampilkan kembali
+      /*
       h += '<div class="sb-wrap"><div class="sb-head"><span>Komposisi Pinjaman</span><span>' + fRp(tot) + '</span></div>';
       h += '<div class="sb-bg"><div class="sb-pri" id="sbp-' + esc(id) + '" style="width:0%"></div><div class="sb-int" id="sbi-' + esc(id) + '" style="width:0%"></div></div>';
       h += '<div class="sb-leg"><div class="leg lp">Pokok ' + priPct + '%</div><div class="leg li">Bunga ' + intPct + '%</div></div></div>';
+      */
       h += '<div class="mp-wrap"><div class="mp-head"><div class="mp-title">Progress Pelunasan</div>';
       h += '<div class="mp-pct' + (isPaid ? ' done' : '') + '" id="mpc-' + esc(id) + '">0%</div></div>';
       h += '<div class="mp-bg"><div class="mp-track' + (isPaid ? ' done' : '') + '" id="mpt-' + esc(id) + '" style="width:0%"></div></div>';
       h += '<div class="mp-sub"><span>Terbayar: <span style="color:var(--success)">' + fRp(paid) + '</span></span><span>Total: <span>' + fRp(tot) + '</span></span></div></div>';
       if (!isPaid && !isArch) {
-        h += '<button class="pay-btn" id="det-pay-btn">💳 Bayar Cicilan</button>';
+        if (od) {
+          h += '<button class="denda-btn" id="det-penalty-btn">\u26a0\ufe0f Tambah Denda</button>';
+        }
+        h += '<button class="pay-btn" id="det-pay-btn">\ud83d\udcb3 Bayar Cicilan</button>';
       } else if (isPaid && !isArch) {
         h += '<div style="background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:var(--rs);padding:14px 16px;margin-bottom:14px;text-align:center">';
-        h += '<div style="font-size:24px;margin-bottom:4px">🎉</div><div style="font-family:\'Sora\',sans-serif;font-weight:700;color:var(--success)">Pinjaman Lunas!</div>';
+        h += '<div style="font-size:24px;margin-bottom:4px">\ud83c\udf89</div><div style="font-family:\'Sora\',sans-serif;font-weight:700;color:var(--success)">Pinjaman Lunas!</div>';
         h += '<div style="font-size:12px;color:var(--muted);margin-top:2px">Semua cicilan telah dibayar</div></div>';
         h += '<button class="arch-action-btn do-archive" id="det-arch-btn" data-id="' + esc(d.id) + '">&#128450;&#65039; Arsipkan Transaksi Ini</button>';
       }
       h += '<div class="section-title"><span>Timeline Pembayaran</span><span class="count-badge">' + insts.length + '</span></div>';
       h += '<div class="tl-wrap">';
       if (!insts.length) {
-        h += '<div class="empty" style="padding:28px 20px"><div class="ic" style="font-size:36px">📅</div><p>Belum ada pembayaran.</p></div>';
+        h += '<div class="empty" style="padding:28px 20px"><div class="ic" style="font-size:36px">\ud83d\udcc5</div><p>Belum ada pembayaran.</p></div>';
       } else {
         var sorted = insts.slice().sort(function(a, b) { return new Date(a.payment_date) - new Date(b.payment_date); });
         var runIP = 0;
@@ -1475,7 +1593,7 @@ function renderDetail(id) {
           var iAlloc = Math.min(amt, Math.max(0, ir - runIP)), pAlloc = amt - iAlloc;
           runIP += iAlloc;
           var dotCls = (isLast && !isPaid) ? 'tl-dot cur' : 'tl-dot pd';
-          var dotIco = (isLast && !isPaid) ? '⏰' : '✅';
+          var dotIco = (isLast && !isPaid) ? '\u23f0' : '\u2705';
           h += '<div class="tl-item"><div class="tl-left"><div class="' + dotCls + '">' + dotIco + '</div>';
           h += '<div class="tl-line' + (isLast ? ' last' : '') + '"></div></div>';
           h += '<div class="tl-body' + (ti === 0 ? ' first' : '') + '">';
@@ -1485,17 +1603,21 @@ function renderDetail(id) {
           if (iAlloc > 0) h += '<span class="at at-i">Bunga: ' + fRp(iAlloc) + '</span>';
           if (pAlloc > 0) h += '<span class="at at-p">Pokok: ' + fRp(pAlloc) + '</span>';
           h += '</div>';
-          if (inst.notes) h += '<div class="tl-note">📝 ' + esc(inst.notes) + '</div>';
+          if (inst.penalty_amount && inst.penalty_amount > 0) {
+            h += '<div class="tl-penalty">\u26a0\ufe0f Denda: <span>' + fRp(inst.penalty_amount) + '</span></div>';
+          }
+          if (inst.notes) h += '<div class="tl-note">\ud83d\udcdd ' + esc(inst.notes) + '</div>';
           h += '</div></div>';
         }
         if (!isPaid) {
-          h += '<div class="tl-future"><div class="tl-left"><div class="tl-dot" style="font-size:16px">🔮</div><div class="tl-line last"></div></div>';
+          h += '<div class="tl-future"><div class="tl-left"><div class="tl-dot" style="font-size:16px">\ud83d\udd2e</div><div class="tl-line last"></div></div>';
           h += '<div class="tl-body" style="padding-top:4px"><div class="tl-title" style="color:var(--muted)">Cicilan Berikutnya</div><div class="tl-date">Sisa ' + fRp(rem) + '</div></div></div>';
         }
       }
       h += '</div></div>';
       el.innerHTML = h;
 
+      // [UI] Animate detail ring, progress bar, and stacked bar after DOM is ready
       requestAnimationFrame(function() {
         if (myGen !== _detailGen) return;
 
@@ -1530,12 +1652,11 @@ function renderDetail(id) {
         } else if (rp) {
           rp.textContent = p + '%';
         }
-        var sbp = g('sbp-' + id), sbi = g('sbi-' + id);
-        if (sbp && sbi) setTimeout(function() {
-          if (myGen !== _detailGen) return;
-          sbp.style.width = priPct + '%'; sbi.style.width = intPct + '%';
-        }, 150);
+        // [UI] Komposisi Pinjaman Animasi — SAAT INI DISEMBUNYIKAN, hapus komentar  //  dibawah ini untuk menampilkan kembali
+        // var sbp = g('sbp-' + id), sbi = g('sbi-' + id);
+        // if (sbp && sbi) { sbp.style.width = priPct + '%'; sbi.style.width = intPct + '%'; }
 
+        // [EVENT] Bind back, archive, unarchive, pay buttons injected by renderDetail
         var bb = g('det-back');
         if (bb) bb.addEventListener('click', function() { goPage(S.prevPage || 'dashboard'); });
 
@@ -1548,18 +1669,22 @@ function renderDetail(id) {
           var fresh = S.debts.find(function(x) { return x.id === id; });
           openPay(id, fresh ? fresh.remaining_amount : rem);
         });
+
+        // [EVENT] Bind penalty button in detail page
+        var _dpen = document.getElementById('det-penalty-btn');
+        if (_dpen) _dpen.addEventListener('click', function() { openPenalty(id); });
       });
     },
     function(e) {
       if (myGen !== _detailGen) return;
-      el.innerHTML = '<div class="error-state"><div class="ic">⚠️</div><p>' + esc(e) + '</p>'
+      el.innerHTML = '<div class="error-state"><div class="ic">\u26a0\ufe0f</div><p>' + esc(e) + '</p>'
         + '<button class="error-retry" onclick="renderDetail(\'' + esc(id) + '\')">Coba Lagi</button></div>';
     }
   );
 }
 
 var _toastTimer;
-// Show toast notification with auto-dismiss; pass undoFn to render inline Undo button
+// [UI] Show toast notification with auto-dismiss; pass undoFn for inline Undo button
 function showToast(msg, type, undoFn) {
   var t = D.toast;
   if (undoFn) {
@@ -1586,7 +1711,7 @@ function showToast(msg, type, undoFn) {
   _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 5000);
 }
 
-// Sync due date placeholder visibility for add form
+// [UX] Sync due date placeholder visibility for add form
 (function() {
   var inp = document.getElementById('inp-due');
   var ph  = document.getElementById('due-ph');
@@ -1601,7 +1726,7 @@ function showToast(msg, type, undoFn) {
   sync();
 })();
 
-// Sync due date placeholder visibility for edit form
+// [UX] Sync due date placeholder visibility for edit form
 (function() {
   var inp = document.getElementById('edit-due');
   var ph  = document.getElementById('edit-due-ph');
@@ -1616,11 +1741,16 @@ function showToast(msg, type, undoFn) {
   sync();
 })();
 
+// [INIT] Bind currency inputs for create form
 initCI(g('inp-prin'));
 initCI(g('inp-int'));
+
+// [INIT] Bind currency inputs for payment/penalty modals; set default paydate
 initCI(g('inp-pay'), function() {});
+initCI(g('inp-penalty'), function() {});
 g('inp-paydate').value = _todayLocal();
-// Sync paydate placeholder visibility
+
+// [UX] Sync paydate placeholder visibility
 (function() {
   var inp = document.getElementById('inp-paydate');
   var ph  = document.getElementById('paydate-ph');
@@ -1630,9 +1760,11 @@ g('inp-paydate').value = _todayLocal();
   inp.addEventListener('input',  sync);
   sync();
 })();
+
+// [INIT] Activate pull-to-refresh gesture
 initPullToRefresh();
 
-// Offline detection — show/hide banner and update health dot
+// [UX] Offline detection — show/hide banner and update health dot
 (function() {
   var banner = document.getElementById('offline-banner');
   function update() {
@@ -1647,13 +1779,13 @@ initPullToRefresh();
   update();
 })();
 
-// Health check on startup — sets health dot status
+// [API] Health check on startup — sets health dot status
 (function runHealthCheck() {
   var dot = g('health-dot');
-  if (dot && navigator.onLine !== false) { dot.className = 'health-dot chk'; dot.title = 'Memeriksa koneksi…'; }
+  if (dot && navigator.onLine !== false) { dot.className = 'health-dot chk'; dot.title = 'Memeriksa koneksi\u2026'; }
   call({ action:'healthCheck' },
     function(r) {
-      if (dot) { dot.className = 'health-dot ok'; dot.title = 'Terhubung · ' + (r.spreadsheet || 'OK') + ' · ' + (r.now || ''); }
+      if (dot) { dot.className = 'health-dot ok'; dot.title = 'Terhubung \u00b7 ' + (r.spreadsheet || 'OK') + ' \u00b7 ' + (r.now || ''); }
     },
     function(e) {
       if (dot) { dot.className = 'health-dot err'; dot.title = 'Koneksi bermasalah: ' + (e || 'error'); }
@@ -1661,5 +1793,6 @@ initPullToRefresh();
   );
 })();
 
+// [INIT] Load all debts on startup
 loadDebts();
 </script>

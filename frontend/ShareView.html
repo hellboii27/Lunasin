@@ -78,6 +78,12 @@ body::after{width:320px;height:320px;background:radial-gradient(circle,rgba(56,1
 .bkd-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
 .bkd-item{background:rgba(255,255,255,.06);border:1px solid var(--glass-b);border-radius:var(--rs);padding:12px 14px}
 .bi-po{border-left:3px solid var(--accent2)}.bi-bu{border-left:3px solid var(--accent3)}.bi-to{border-left:3px solid var(--accent)}.bi-si{border-left:3px solid var(--warn)}
+/* ═══════════════ PENALTY GRID ═══════════════ */
+.penalty-card-wrap{background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.28);border-left:3px solid #f87171;border-radius:12px;padding:10px 14px;margin-bottom:10px}
+.penalty-card-inner{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.penalty-card-label{font-size:10px;color:#fca5a5;text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:2px}
+.penalty-card-amount{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:#fca5a5}
+.penalty-card-right{font-size:10px;color:rgba(252,165,165,.6);text-align:right;line-height:1.4;flex-shrink:0}
 .bkd-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:4px}
 .bkd-val{font-family:'Sora',sans-serif;font-size:clamp(12px,3.5vw,14px);font-weight:700;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bkd-sub{font-size:10px;color:var(--muted)}
@@ -129,6 +135,7 @@ body::after{width:320px;height:320px;background:radial-gradient(circle,rgba(56,1
 .at-i{background:rgba(244,114,182,.1);color:var(--accent3);border:1px solid rgba(244,114,182,.2)}
 .at-p{background:rgba(56,189,248,.1);color:var(--accent2);border:1px solid rgba(56,189,248,.2)}
 .tl-note{font-size:11px;color:var(--accent2);margin-top:4px;padding:4px 8px;background:rgba(56,189,248,.08);border-left:2px solid rgba(56,189,248,.35);border-radius:0 4px 4px 0;line-height:1.4}
+.tl-penalty{font-size:11px;color:#fca5a5;margin-top:4px;font-weight:500}.tl-penalty span{font-weight:700;font-family:'Sora',sans-serif}
 /* ═══════════════ PAID BANNER ═══════════════ */
 .paid-banner{background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:var(--rs);padding:14px 16px;margin-bottom:14px;text-align:center}
 /* ═══════════════ ERROR / EMPTY ═══════════════ */
@@ -160,26 +167,36 @@ footer a{color:var(--accent);text-decoration:none}
 </div>
 <script>
 'use strict';
+// [CONFIG] Lunasin v1.6.0 — read-only share view
 
 // [DATA] Debt data injected server-side at render time — no client GAS call needed
 var _res = <?!= debtJson ?>;
 
+// [UTIL] Format number to Rupiah display string
 var _rpFmt = new Intl.NumberFormat('id-ID');
 function fRp(v) { return 'Rp\u00a0' + _rpFmt.format(+v || 0); }
 
+// [CONFIG] Active timezone and Intl date formatters
 var _TZ = Intl.DateTimeFormat().resolvedOptions().timeZone;
 var _dtFmt = new Intl.DateTimeFormat('id-ID', { day:'2-digit', month:'short', year:'numeric', timeZone:_TZ });
+// [UTIL] Format date/datetime to local display string
 function fDt(d) { if (!d) return '—'; var dt = d instanceof Date ? d : new Date(d); return isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt); }
 
+// [PERF] Singleton Intl formatter for _today()
 var _todayFmt = new Intl.DateTimeFormat('en-CA', { year:'numeric', month:'2-digit', day:'2-digit', timeZone:_TZ });
+// [UTIL] Return today as yyyy-MM-dd in browser timezone
 function _today() {
   var parts = _todayFmt.formatToParts(new Date()), p = {};
   parts.forEach(function(x) { p[x.type] = x.value; });
   return p.year + '-' + p.month + '-' + p.day;
 }
+// [UTIL] Check if due_date is overdue
 function isOD(due) { return due ? due < _today() : false; }
+// [UTIL] Calculate payment percentage capped at 100
 function pct(p, t) { t = +t; p = +p; return t ? Math.min(100, Math.round(p / t * 100)) : 0; }
+// [SECURITY] Escape HTML special characters to prevent XSS
 function esc(s) { return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+// [UTIL] Extract up to two initials from full name
 function ini(n) { var a = String(n || '').trim().split(/\s+/); return a.length >= 2 ? (a[0][0]+a[1][0]).toUpperCase() : String(n||'').slice(0,2).toUpperCase(); }
 
 // [UI] Render read-only debt detail from injected data
@@ -237,10 +254,28 @@ function render() {
   h += '<div class="bkd-item bi-si"><div class="bkd-label">⏳ Sisa</div><div class="bkd-val" style="color:' + (isPaid ? 'var(--success)' : od ? 'var(--danger)' : 'var(--warn)') + '">' + fRp(rem) + '</div><div class="bkd-sub">' + (isPaid ? 'Selesai ✓' : insts.length + ' pembayaran') + '</div></div>';
   h += '</div>';
 
+  // [UI] Penalty Card
+  var penTot = +d.penalty_total || 0;
+  var _penHtml = '';
+  if (penTot > 0) {
+    _penHtml += '<div class="penalty-card-wrap">';
+    _penHtml += '<div class="penalty-card-inner">';
+    _penHtml += '<div class="penalty-card-left">';
+    _penHtml += '<div class="penalty-card-label">⚠️ Denda</div>';
+    _penHtml += '<div class="penalty-card-amount">' + fRp(penTot) + '</div>';
+    _penHtml += '</div>';
+    _penHtml += '<div class="penalty-card-right">Denda Keterlambatan<br/>Menambah total tagihan</div>';
+    _penHtml += '</div>';
+    _penHtml += '</div>';
+  }
+  // [UI] Komposisi Pinjaman — SAAT INI DISEMBUNYIKAN, hapus komentar  /*  &  */  dibawah ini untuk menampilkan kembali
+  /*
   h += '<div class="sb-wrap"><div class="sb-head"><span>Komposisi Pinjaman</span><span>' + fRp(tot) + '</span></div>';
   h += '<div class="sb-bg"><div class="sb-pri" id="sbp" style="width:0%"></div><div class="sb-int" id="sbi" style="width:0%"></div></div>';
   h += '<div class="sb-leg"><div class="leg lp">Pokok ' + priPct + '%</div><div class="leg li">Bunga ' + intPct + '%</div></div></div>';
+  */
 
+  h += _penHtml;
   h += '<div class="mp-wrap"><div class="mp-head"><div class="mp-title">Progress Pelunasan</div>';
   h += '<div class="mp-pct' + (isPaid ? ' done' : '') + '" id="mpc">0%</div></div>';
   h += '<div class="mp-bg"><div class="mp-track' + (isPaid ? ' done' : '') + '" id="mpt" style="width:0%"></div></div>';
@@ -275,6 +310,7 @@ function render() {
       if (iAlloc > 0) h += '<span class="at at-i">Bunga: ' + fRp(iAlloc) + '</span>';
       if (pAlloc > 0) h += '<span class="at at-p">Pokok: ' + fRp(pAlloc) + '</span>';
       h += '</div>';
+      if (inst.penalty_amount && +inst.penalty_amount > 0) h += '<div class="tl-penalty">⚠️ Denda: <span>' + fRp(+inst.penalty_amount) + '</span></div>';
       if (inst.notes) h += '<div class="tl-note">📝 ' + esc(inst.notes) + '</div>';
       h += '</div></div>';
     }
@@ -308,8 +344,9 @@ function render() {
         });
       }, 250);
     }
-    var sbp = document.getElementById('sbp'), sbi = document.getElementById('sbi');
-    if (sbp && sbi) setTimeout(function() { sbp.style.width = priPct + '%'; sbi.style.width = intPct + '%'; }, 120);
+    // [UI] Komposisi Pinjaman Animasi — SAAT INI DISEMBUNYIKAN, hapus komentar  //  dibawah ini untuk menampilkan kembali
+    // var sbp = document.getElementById('sbp'), sbi = document.getElementById('sbi');
+    // if (sbp && sbi) { sbp.style.width = priPct + '%'; sbi.style.width = intPct + '%'; }
   });
 }
 

@@ -232,6 +232,16 @@ body::after{width:320px;height:320px;background:radial-gradient(circle,rgba(56,1
 .bkd-item:active{transform:scale(.97)}
 .bkd-item::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:3px 0 0 3px}
 .bi-po::before{background:linear-gradient(180deg,var(--accent2),#0ea5e9)}.bi-bu::before{background:linear-gradient(180deg,var(--accent3),#ec4899)}.bi-to::before{background:linear-gradient(180deg,var(--accent),var(--accent3))}.bi-si::before{background:linear-gradient(180deg,var(--warn),#f59e0b)}
+/* ═══════════════ PENALTY CARD ═══════════════ */
+.penalty-card-wrap{background:rgba(239,68,68,.09);border:1px solid rgba(239,68,68,.28);border-left:3px solid var(--danger);border-radius:var(--rs);padding:10px 14px;margin-bottom:10px}
+.penalty-card-inner{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.penalty-card-left{}
+.penalty-card-label{font-size:10px;color:#fca5a5;text-transform:uppercase;letter-spacing:.7px;font-weight:600;margin-bottom:2px}
+.penalty-card-amount{font-family:'Sora',sans-serif;font-size:15px;font-weight:700;color:#fca5a5}
+.penalty-card-right{font-size:10px;color:rgba(252,165,165,.6);text-align:right;line-height:1.4;flex-shrink:0}
+/* ═══════════════ PENALTY BUTTON ═══════════════ */
+.denda-btn{display:block;width:100%;padding:13px 16px;margin-bottom:10px;background:rgba(239,68,68,.12);border:1.5px solid rgba(239,68,68,.35);border-radius:var(--rs);color:#fca5a5;font-family:'Sora',sans-serif;font-size:14px;font-weight:600;text-align:center;cursor:pointer;transition:all var(--tf);letter-spacing:.2px}
+.denda-btn:active{transform:scale(.97);background:rgba(239,68,68,.2)}
 .bkd-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}
 .bkd-val{font-family:'Sora',sans-serif;font-size:clamp(12px,4vw,15px);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bkd-sub{font-size:10px;color:var(--muted);margin-top:2px}
@@ -393,7 +403,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
   :root{--pad:20px;--gap:12px}
 }
 
-/* ═══════════════ OVERDUE BADGE (nav) ═══════════════ */
+/* ═══════════════ OVERDUE BADGE (NAV) ═══════════════ */
 .nav-icon-wrap{position:relative;display:inline-flex;align-items:center;justify-content:center}
 .nav-od-badge{position:absolute;top:-4px;right:-6px;min-width:15px;height:15px;padding:0 3px;background:var(--danger);border-radius:99px;font-family:'Sora',sans-serif;font-size:9px;font-weight:700;color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;pointer-events:none;transform:scale(0);transition:transform var(--tf) var(--spring);border:1.5px solid var(--bg1)}
 .nav-od-badge.vis{transform:scale(1)}
@@ -414,4 +424,7 @@ footer{text-align:center;font-size:11px;color:var(--muted);padding:4px 0 8px;let
 .fi-sm{width:100%;padding:8px 12px;background:rgba(255,255,255,.06);border:1px solid var(--glass-b);border-radius:var(--rs);color:var(--text);font-size:12px;font-family:'DM Sans',sans-serif;resize:none;outline:none;transition:border-color var(--tf)}
 .fi-sm:focus{border-color:var(--accent)}
 .fi-sm::placeholder{color:var(--muted)}
+/* [UI] Penalty and note rows in payment timeline */
+.tl-penalty{font-size:11px;color:#fca5a5;margin-top:4px;font-weight:500}
+.tl-penalty span{font-weight:700;font-family:'Sora',sans-serif}
 </style>
