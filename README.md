@@ -214,10 +214,6 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 }
 ```
 
-### `addPenalty`
-
-> Denda bersifat opsional dan hanya tersedia pada tagihan yang berstatus **overdue** (lewat jatuh tempo). Denda diakumulasi di kolom `penalty_total` dan langsung menambah `total_amount`.
-
 ### `deleteDebt` / `archiveDebt` / `unarchiveDebt`
 
 ```json
@@ -233,6 +229,9 @@ Semua request dikirim via `google.script.run.processRequest(jsonString)`.
 { "action": "getAppUrl" }
 ```
 
+### `addPenalty`
+
+> Denda bersifat opsional dan hanya tersedia pada tagihan yang berstatus **overdue** (lewat jatuh tempo). Denda diakumulasi di kolom `penalty_total` dan langsung menambah `total_amount`.
 ---
 
 ## 📱 Kompatibilitas
