@@ -1,5 +1,4 @@
 // [CONFIG] Lunasin v1.7.0 | © 2026 Bayu Wicaksono
-// [CHANGELOG] v1.7.0 - Phase 1 Critical Fixes: XSS protection, race condition fixes, memory leak fixes
 
 // [CONFIG] Sheet names, cache key, and lock timeout
 var SHEET_DEBTS = 'debts';
