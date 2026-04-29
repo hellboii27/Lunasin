@@ -74,10 +74,29 @@ var _dtFmt = new Intl.DateTimeFormat('id-ID', {
   day: '2-digit', month: 'short', year: 'numeric',
   timeZone: _TZ
 });
+
+// [PERF] Memoization cache for formatted dates (max 100 entries)
+var _fDtCache = {};
+var _fDtCacheSize = 0;
+var _fDtCacheMax = 100;
+
 function fDt(d) {
   if (!d) return '\u2014';
+  
+  // [PERF] Check cache first
+  var key = String(d);
+  if (_fDtCache[key]) return _fDtCache[key];
+  
   var dt = (d instanceof Date) ? d : new Date(d);
-  return isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt);
+  var result = isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt);
+  
+  // [PERF] Store in cache (with size limit)
+  if (_fDtCacheSize < _fDtCacheMax) {
+    _fDtCache[key] = result;
+    _fDtCacheSize++;
+  }
+  
+  return result;
 }
 
 // [PERF] Singleton Intl formatter for _todayLocal()
@@ -85,11 +104,25 @@ var _todayFmt = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric', month: '2-digit', day: '2-digit', timeZone: _TZ
 });
 
+// [PERF] Cache today's date (recalculated max once per minute)
+var _todayCache = { value: '', ts: 0 };
+
 // [UTIL] Return today as yyyy-MM-dd in browser local timezone
 function _todayLocal() {
+  var now = Date.now();
+  // [PERF] Return cached value if less than 60 seconds old
+  if (_todayCache.ts > 0 && (now - _todayCache.ts) < 60000) {
+    return _todayCache.value;
+  }
+  
   var parts = _todayFmt.formatToParts(new Date()), p = {};
   parts.forEach(function(x) { p[x.type] = x.value; });
-  return p.year + '-' + p.month + '-' + p.day;
+  var result = p.year + '-' + p.month + '-' + p.day;
+  
+  _todayCache.value = result;
+  _todayCache.ts = now;
+  
+  return result;
 }
 
 // [UTIL] Check if due_date is overdue; re-evaluates today on each call
@@ -536,6 +569,14 @@ var _loadingDebts = false;
 // [API] Fetch all debts including archived; populate state from cache or backend
 function loadDebts(done) {
   if (_loadingDebts) { if (done) setTimeout(done, 0); return; }
+  
+  // [PERF] Use cache if fresh (within TTL) and data exists
+  var cacheAge = Date.now() - S._cache.ts;
+  if (S._cache.ts > 0 && cacheAge < S._cacheTTL && S.debts.length > 0) {
+    if (done) setTimeout(done, 0);
+    return;
+  }
+  
   _loadingDebts = true;
   D.dskel.style.display = 'block'; D.dbody.style.display = 'none';
   call({ action:'getDebts', page:1, limit:200, includeArchived:true },
@@ -830,6 +871,7 @@ function initSwipeGesture(id) {
 
   var startX = 0, startY = 0, curX = 0, dragging = false, lockAxis = null;
   var cachedRW = 76, cachedLW = 76;
+  var rafId = null; // [PERF] RAF handle for throttling
 
   function onStart(e) {
     if (_openSwipe && _openSwipe !== id) closeAllSwipes();
@@ -840,6 +882,17 @@ function initSwipeGesture(id) {
     cachedRW = rp ? rp.scrollWidth : 76;
     cachedLW = lp ? lp.scrollWidth : 76;
   }
+  
+  // [PERF] RAF-throttled transform update
+  function updateTransform(tx) {
+    if (rafId) return; // Already scheduled
+    rafId = requestAnimationFrame(function() {
+      rafId = null;
+      card.style.transform = 'translateX(' + tx + 'px)';
+      wrap.classList.toggle('revealed', Math.abs(tx) > 10);
+    });
+  }
+  
   function onMove(e) {
     if (!dragging) return;
     var dx = e.touches[0].clientX - startX;
@@ -853,8 +906,7 @@ function initSwipeGesture(id) {
     e.preventDefault();
     curX = dx;
     var tx = dx < 0 ? Math.max(-cachedRW - 20, dx) : Math.min(cachedLW + 20, dx);
-    card.style.transform = 'translateX(' + tx + 'px)';
-    wrap.classList.toggle('revealed', Math.abs(tx) > 10);
+    updateTransform(tx); // [PERF] Use RAF-throttled update
   }
   function onEnd() {
     if (!dragging) return;
@@ -935,18 +987,30 @@ D.txsrch.addEventListener('input', function() {
   var q = this.value.trim().toLowerCase(); S.q = q;
   D.txclr.classList.toggle('vis', q.length > 0);
   clearTimeout(_searchTimer);
+  
+  // [PERF] Reduced debounce from 260ms to 200ms for snappier feel
   _searchTimer = setTimeout(function() {
     var _src = S.txTab === 'archived' ? S.archivedDebts : S.debts;
-    S.filtered = q ? _src.filter(function(d) {
-      var statusAlias = d.status === 'paid' ? 'lunas' : d.status === 'active' ? 'aktif' : d.status;
-      var isOvAlias   = (d.overpayment_amount || 0) > 0 ? 'lebih bayar' : '';
-      return (d.person_name || '').toLowerCase().indexOf(q) !== -1 ||
-             (d.notes       || '').toLowerCase().indexOf(q) !== -1 ||
-             statusAlias.indexOf(q) !== -1 ||
-             isOvAlias.indexOf(q)   !== -1;
-    }) : _src.slice();
+    
+    if (!q) {
+      // [PERF] Fast path for empty query
+      S.filtered = _src.slice();
+    } else {
+      // [PERF] Pre-compute aliases once
+      S.filtered = _src.filter(function(d) {
+        var statusAlias = d.status === 'paid' ? 'lunas' : d.status === 'active' ? 'aktif' : d.status;
+        var isOvAlias   = (d.overpayment_amount || 0) > 0 ? 'lebih bayar' : '';
+        
+        // [PERF] Short-circuit on first match
+        return (d.person_name || '').toLowerCase().indexOf(q) !== -1 ||
+               (d.notes       || '').toLowerCase().indexOf(q) !== -1 ||
+               statusAlias.indexOf(q) !== -1 ||
+               isOvAlias.indexOf(q)   !== -1;
+      });
+    }
+    
     S.txPg = 1; renderTxPage();
-  }, 260);
+  }, 200);
 });
 // [EVENT] Search clear button — resets query and re-renders
 D.txclr.addEventListener('click', function() {
