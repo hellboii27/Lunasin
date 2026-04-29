@@ -1396,10 +1396,16 @@ g('btn-pay').addEventListener('click', function() {
   var btn = this;
   btn.innerHTML = '<div class="loader"></div> Menyimpan\u2026'; btn.disabled = true;
 
-  // [CALC] Optimistic update: paid += payment amount only
-  var snapshot = JSON.parse(JSON.stringify(S.debts));
+  // [FIX] Deep clone snapshot before optimistic update to enable proper rollback
+  var snapshot = {
+    debts: JSON.parse(JSON.stringify(S.debts)),
+    filtered: JSON.parse(JSON.stringify(S.filtered)),
+    archivedDebts: JSON.parse(JSON.stringify(S.archivedDebts))
+  };
+  
   var debt = S.debts.find(function(x) { return x.id === did; });
   if (debt) {
+    // [CALC] Optimistic update: paid += payment amount only
     var opt     = Object.assign({}, debt);
     var newPaid = Math.max(0, (opt.paid_amount || 0)) + amt;
     opt.paid_amount        = newPaid;
@@ -1420,10 +1426,16 @@ g('btn-pay').addEventListener('click', function() {
       if (S.selId === did) renderDetail(did);
     },
     function(e) {
+      // [FIX] Proper rollback to exact previous state
       btn.textContent = 'Catat Pembayaran'; btn.disabled = false;
       showToast('Gagal: ' + e, 'e');
-      S.debts = snapshot;
-      S.filtered = S.q ? S.filtered : S.debts.slice();
+      S.debts = snapshot.debts;
+      S.filtered = snapshot.filtered;
+      S.archivedDebts = snapshot.archivedDebts;
+      // Re-render current view to reflect rollback
+      if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
+      if (S.page === 'transactions') renderTx();
+      if (S.page === 'detail' && S.selId === did) renderDetail(did);
     }
   );
 });

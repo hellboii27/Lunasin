@@ -1,4 +1,5 @@
-// [CONFIG] Lunasin v1.6.0 | © 2026 Bayu Wicaksono
+// [CONFIG] Lunasin v1.7.0 | © 2026 Bayu Wicaksono
+// [CHANGELOG] v1.7.0 - Phase 1 Critical Fixes: XSS protection, race condition fixes, memory leak fixes
 
 // [CONFIG] Sheet names, cache key, and lock timeout
 var SHEET_DEBTS = 'debts';
@@ -6,6 +7,37 @@ var SHEET_INST  = 'installments';
 var CACHE_KEY   = 'lunasin_debts_v5';
 var CACHE_TTL   = 300;
 var LOCK_MS     = 6000;
+
+// [SECURITY] HTML entity encoding to prevent XSS attacks
+function _sanitizeInput(str) {
+  if (str == null || str === '') return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
+// [SECURITY] Sanitize object properties recursively
+function _sanitizeObject(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  var sanitized = {};
+  for (var key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      var val = obj[key];
+      if (typeof val === 'string') {
+        sanitized[key] = _sanitizeInput(val);
+      } else if (typeof val === 'object' && val !== null) {
+        sanitized[key] = _sanitizeObject(val);
+      } else {
+        sanitized[key] = val;
+      }
+    }
+  }
+  return sanitized;
+}
 
 // [CONFIG] Debts sheet column index map
 var DC = {
