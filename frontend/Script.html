@@ -59,8 +59,57 @@ var S = {
   _cacheTTL: 30000
 };
 
-// [CONFIG] GAS call timeout in ms
-var CALL_TIMEOUT_MS = 30000;
+// [CONFIG] Timing constants (in milliseconds)
+var TIMING = {
+  CALL_TIMEOUT: 30000,        // GAS call timeout
+  TOAST_DURATION: 5000,       // Toast notification display time
+  CARD_BUILD_DELAY: 200,      // Delay before rebuilding debt cards
+  SETTLING_DURATION: 260,     // Swipe card settling animation duration
+  SEARCH_DEBOUNCE: 200,       // Search input debounce delay
+  TODAY_CACHE_TTL: 60000      // Today's date cache TTL (1 minute)
+};
+
+// [CONFIG] UI thresholds
+var THRESHOLDS = {
+  SWIPE_SNAP: 50,             // Swipe distance to trigger snap (px)
+  DATE_CACHE_MAX: 100,        // Maximum date format cache entries
+  SWIPE_AXIS_LOCK: 4          // Touch movement threshold for axis lock (px)
+};
+
+// [DEBUG] Logging configuration
+var DEBUG = {
+  enabled: false,              // Set to true to enable debug logging
+  logLevel: 'info'             // 'debug', 'info', 'warn', 'error'
+};
+
+// [DEBUG] Logging utility
+var Log = {
+  debug: function(msg, data) {
+    if (!DEBUG.enabled || DEBUG.logLevel === 'error' || DEBUG.logLevel === 'warn') return;
+    console.log('[DEBUG]', msg, data || '');
+  },
+  info: function(msg, data) {
+    if (!DEBUG.enabled || DEBUG.logLevel === 'error' || DEBUG.logLevel === 'warn') return;
+    console.info('[INFO]', msg, data || '');
+  },
+  warn: function(msg, data) {
+    if (!DEBUG.enabled || DEBUG.logLevel === 'error') return;
+    console.warn('[WARN]', msg, data || '');
+  },
+  error: function(msg, data) {
+    if (!DEBUG.enabled) return;
+    console.error('[ERROR]', msg, data || '');
+  },
+  // [DEBUG] Performance timing
+  time: function(label) {
+    if (!DEBUG.enabled) return;
+    console.time('[PERF] ' + label);
+  },
+  timeEnd: function(label) {
+    if (!DEBUG.enabled) return;
+    console.timeEnd('[PERF] ' + label);
+  }
+};
 
 // [UTIL] Format number to Rupiah display string
 var _rpFmt = new Intl.NumberFormat('id-ID');
@@ -75,10 +124,9 @@ var _dtFmt = new Intl.DateTimeFormat('id-ID', {
   timeZone: _TZ
 });
 
-// [PERF] Memoization cache for formatted dates (max 100 entries)
+// [PERF] Memoization cache for formatted dates (max entries from config)
 var _fDtCache = {};
 var _fDtCacheSize = 0;
-var _fDtCacheMax = 100;
 
 function fDt(d) {
   if (!d) return '\u2014';
@@ -90,8 +138,8 @@ function fDt(d) {
   var dt = (d instanceof Date) ? d : new Date(d);
   var result = isNaN(dt.getTime()) ? String(d) : _dtFmt.format(dt);
   
-  // [PERF] Store in cache (with size limit)
-  if (_fDtCacheSize < _fDtCacheMax) {
+  // [PERF] Store in cache (with size limit from config)
+  if (_fDtCacheSize < THRESHOLDS.DATE_CACHE_MAX) {
     _fDtCache[key] = result;
     _fDtCacheSize++;
   }
@@ -104,14 +152,14 @@ var _todayFmt = new Intl.DateTimeFormat('en-CA', {
   year: 'numeric', month: '2-digit', day: '2-digit', timeZone: _TZ
 });
 
-// [PERF] Cache today's date (recalculated max once per minute)
+// [PERF] Cache today's date (recalculated max once per minute from config)
 var _todayCache = { value: '', ts: 0 };
 
 // [UTIL] Return today as yyyy-MM-dd in browser local timezone
 function _todayLocal() {
   var now = Date.now();
-  // [PERF] Return cached value if less than 60 seconds old
-  if (_todayCache.ts > 0 && (now - _todayCache.ts) < 60000) {
+  // [PERF] Return cached value if less than TTL
+  if (_todayCache.ts > 0 && (now - _todayCache.ts) < TIMING.TODAY_CACHE_TTL) {
     return _todayCache.value;
   }
   
@@ -199,29 +247,46 @@ function setCI(id, val) {
 
 // [API] Wrap google.script.run with timeout; falls back to demo() outside GAS
 function call(p, ok, fail) {
+  Log.debug('API Call', { action: p.action, params: p });
+  Log.time('API: ' + p.action);
+  
   if (typeof google !== 'undefined' && google.script && google.script.run) {
     var done = false;
     var timer = setTimeout(function() {
       if (done) return;
       done = true;
+      Log.error('API Timeout', { action: p.action });
       if (fail) fail('Request timeout \u2014 server tidak merespons. Coba lagi.');
-    }, CALL_TIMEOUT_MS);
+    }, TIMING.CALL_TIMEOUT);
     google.script.run
       .withSuccessHandler(function(r) {
         if (done) return;
         done = true; clearTimeout(timer);
+        Log.timeEnd('API: ' + p.action);
         try {
           var d = typeof r === 'string' ? JSON.parse(r) : r;
-          d.success ? ok(d) : (fail && fail(d.message || 'Error'));
-        } catch(e) { if (fail) fail('Parse error: ' + e.message); }
+          if (d.success) {
+            Log.info('API Success', { action: p.action, data: d });
+            ok(d);
+          } else {
+            Log.warn('API Failed', { action: p.action, message: d.message });
+            if (fail) fail(d.message || 'Error');
+          }
+        } catch(e) {
+          Log.error('Parse Error', { action: p.action, error: e.message });
+          if (fail) fail('Parse error: ' + e.message);
+        }
       })
       .withFailureHandler(function(e) {
         if (done) return;
         done = true; clearTimeout(timer);
+        Log.timeEnd('API: ' + p.action);
+        Log.error('API Error', { action: p.action, error: e.message });
         if (fail) fail(e.message || 'Server error');
       })
       .processRequest(JSON.stringify(p));
   } else {
+    Log.info('Demo Mode', { action: p.action });
     demo(p, ok, fail);
   }
 }
@@ -630,7 +695,7 @@ function renderDash(debts, sum) {
   if (existing.length && !(existing.length === 1 && existing[0].classList.contains('empty'))) {
     for (var i = 0; i < existing.length; i++) existing[i].classList.add('l-exit');
     if (_buildCardsTimer) { clearTimeout(_buildCardsTimer); _buildCardsTimer = null; }
-    _buildCardsTimer = setTimeout(function() { _buildCardsTimer = null; buildDebtCards(debts); }, 200);
+    _buildCardsTimer = setTimeout(function() { _buildCardsTimer = null; buildDebtCards(debts); }, TIMING.CARD_BUILD_DELAY);
   } else {
     if (_buildCardsTimer) { clearTimeout(_buildCardsTimer); _buildCardsTimer = null; }
     buildDebtCards(debts);
@@ -838,7 +903,7 @@ function closeAllSwipes() {
     if (card) {
       card.classList.add('settling');
       card.style.transform = 'translateX(0)';
-      setTimeout(function() { card.classList.remove('settling'); }, 260);
+      setTimeout(function() { card.classList.remove('settling'); }, TIMING.SETTLING_DURATION);
     }
     wrap.classList.remove('revealed');
   }
@@ -866,8 +931,8 @@ function initSwipeGesture(id) {
     }
   }
 
-  // [CONFIG] Swipe snap threshold in px
-  var SNAP_THRESHOLD = 50;
+  // [CONFIG] Swipe snap threshold from config
+  var SNAP_THRESHOLD = THRESHOLDS.SWIPE_SNAP;
 
   var startX = 0, startY = 0, curX = 0, dragging = false, lockAxis = null;
   var cachedRW = 76, cachedLW = 76;
@@ -898,8 +963,8 @@ function initSwipeGesture(id) {
     var dx = e.touches[0].clientX - startX;
     var dy = e.touches[0].clientY - startY;
     if (!lockAxis) {
-      if (Math.abs(dx) > Math.abs(dy) + 4) lockAxis = 'x';
-      else if (Math.abs(dy) > Math.abs(dx) + 4) lockAxis = 'y';
+      if (Math.abs(dx) > Math.abs(dy) + THRESHOLDS.SWIPE_AXIS_LOCK) lockAxis = 'x';
+      else if (Math.abs(dy) > Math.abs(dx) + THRESHOLDS.SWIPE_AXIS_LOCK) lockAxis = 'y';
       else return;
     }
     if (lockAxis === 'y') return;
@@ -988,7 +1053,7 @@ D.txsrch.addEventListener('input', function() {
   D.txclr.classList.toggle('vis', q.length > 0);
   clearTimeout(_searchTimer);
   
-  // [PERF] Reduced debounce from 260ms to 200ms for snappier feel
+  // [PERF] Reduced debounce for snappier feel
   _searchTimer = setTimeout(function() {
     var _src = S.txTab === 'archived' ? S.archivedDebts : S.debts;
     
@@ -1010,7 +1075,7 @@ D.txsrch.addEventListener('input', function() {
     }
     
     S.txPg = 1; renderTxPage();
-  }, 200);
+  }, TIMING.SEARCH_DEBOUNCE);
 });
 // [EVENT] Search clear button — resets query and re-renders
 D.txclr.addEventListener('click', function() {
@@ -1784,7 +1849,7 @@ function showToast(msg, type, undoFn) {
   t.className = 'toast ' + (type || '');
   t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(function() { t.classList.remove('show'); }, 5000);
+  _toastTimer = setTimeout(function() { t.classList.remove('show'); }, TIMING.TOAST_DURATION);
 }
 
 // [UX] Sync due date placeholder visibility for add form

@@ -253,6 +253,56 @@ function _ss() {
   return ss;
 }
 
+// [VALIDATION] Helper: Validate required ID parameter
+function _requireId(params, paramName) {
+  paramName = paramName || 'id';
+  if (!params[paramName]) throw new Error(paramName + ' diperlukan');
+  return sStr(String(params[paramName]), 50);
+}
+
+// [VALIDATION] Helper: Validate required name parameter
+function _requireName(name) {
+  name = sName(name);
+  if (!name) throw new Error('Nama tidak boleh kosong');
+  return name;
+}
+
+// [VALIDATION] Helper: Validate required positive amount
+function _requirePositiveAmount(amount, fieldName) {
+  amount = sRp(amount);
+  if (amount <= 0) throw new Error((fieldName || 'Jumlah') + ' harus lebih dari 0');
+  return amount;
+}
+
+// [DB] Helper: Find debt row by ID, throws if not found
+function _findDebtRow(sh, id) {
+  var lr = sh.getLastRow();
+  if (lr <= 1) throw new Error('Debt tidak ditemukan: ' + id);
+  
+  var nc = sh.getLastColumn();
+  var raw = sh.getRange(1, 1, lr, nc).getValues();
+  
+  for (var r = 1; r < raw.length; r++) {
+    if (String(raw[r][DC.id]) === id) {
+      return { rowNum: r + 1, row: raw[r], allRows: raw };
+    }
+  }
+  
+  throw new Error('Debt tidak ditemukan: ' + id);
+}
+
+// [DB] Helper: Check if debt ID exists (returns boolean)
+function _debtExists(sh, id) {
+  var lr = sh.getLastRow();
+  if (lr <= 1) return false;
+  
+  var idcol = sh.getRange(1, 1, lr, 1).getValues();
+  for (var r = 1; r < idcol.length; r++) {
+    if (String(idcol[r][0]) === id) return true;
+  }
+  return false;
+}
+
 // [DB] Get or create named sheet; runs schema migration if already exists
 function getOrCreateSheet(name) {
   var ss=_ss(), sh=ss.getSheetByName(name);
@@ -441,13 +491,13 @@ function _getSingle(id) {
 function createDebt(params) {
   var lock=acquireLock();
   try {
-    var name =sName(params.person_name);
-    var prin =sRp(params.principal_amount);
-    var inter=sRp(params.interest_amount);
-    var due  =sDate(params.due_date);
-    var notes=sNotes(params.notes);
-    if(!name)   throw new Error('Nama tidak boleh kosong');
-    if(prin<=0) throw new Error('Pokok pinjaman harus lebih dari 0');
+    // [REFACTOR] Use validation helpers
+    var name  = _requireName(params.person_name);
+    var prin  = _requirePositiveAmount(params.principal_amount, 'Pokok pinjaman');
+    var inter = sRp(params.interest_amount);
+    var due   = sDate(params.due_date);
+    var notes = sNotes(params.notes);
+    
     var c=buildDebt(prin,inter,0);
     var sh=getOrCreateSheet(SHEET_DEBTS);
     var id=genDebtId(sh), now=nowWIB();
@@ -472,25 +522,24 @@ function createDebt(params) {
 function updateDebt(params) {
   var lock=acquireLock();
   try {
-    if(!params.id) throw new Error('id diperlukan');
-    var id=sStr(String(params.id),50);
-    var sh=getOrCreateSheet(SHEET_DEBTS), lr=sh.getLastRow();
-    if(lr<=1) throw new Error('Debt tidak ditemukan: '+id);
-    var nc=sh.getLastColumn();
-    var raw=sh.getRange(1,1,lr,nc).getValues();
-    var rowNum=-1, ex=null;
-    for(var r=1;r<raw.length;r++){if(String(raw[r][DC.id])===id){rowNum=r+1;ex=raw[r];break;}}
-    if(rowNum===-1) throw new Error('Debt tidak ditemukan: '+id);
-    var name =params.person_name      !==undefined?sName(params.person_name)   :sStr(ex[DC.person_name],200);
-    var prin =params.principal_amount !==undefined?sRp(params.principal_amount):Math.max(0,Math.floor(+ex[DC.principal_amount]||0));
-    var inter=params.interest_amount  !==undefined?sRp(params.interest_amount) :Math.max(0,Math.floor(+ex[DC.interest_amount] ||0));
-    var due  =params.due_date         !==undefined?sDate(params.due_date)       :fmtDate(ex[DC.due_date]);
-    var notes=params.notes            !==undefined?sNotes(params.notes)         :(ex.length>DC.notes?sNotes(ex[DC.notes]):'');
-    if(!name)   throw new Error('Nama tidak boleh kosong');
-    if(prin<=0) throw new Error('Pokok harus lebih dari 0');
-    var paid=Math.max(0,Math.floor(+ex[DC.paid_amount]||0));
-    var c=buildDebt(prin,inter,paid), now=nowWIB();
-    var vals=raw[rowNum-1].slice();
+    // [REFACTOR] Use helper functions
+    var id = _requireId(params);
+    var sh = getOrCreateSheet(SHEET_DEBTS);
+    var found = _findDebtRow(sh, id);
+    var ex = found.row;
+    var rowNum = found.rowNum;
+    var nc = sh.getLastColumn();
+    
+    // [REFACTOR] Cleaner parameter extraction
+    var name  = params.person_name      !== undefined ? _requireName(params.person_name) : sStr(ex[DC.person_name],200);
+    var prin  = params.principal_amount !== undefined ? _requirePositiveAmount(params.principal_amount, 'Pokok') : Math.max(0,Math.floor(+ex[DC.principal_amount]||0));
+    var inter = params.interest_amount  !== undefined ? sRp(params.interest_amount) : Math.max(0,Math.floor(+ex[DC.interest_amount]||0));
+    var due   = params.due_date         !== undefined ? sDate(params.due_date) : fmtDate(ex[DC.due_date]);
+    var notes = params.notes            !== undefined ? sNotes(params.notes) : (ex.length>DC.notes?sNotes(ex[DC.notes]):'');
+    
+    var paid = Math.max(0,Math.floor(+ex[DC.paid_amount]||0));
+    var c = buildDebt(prin,inter,paid), now = nowWIB();
+    var vals = found.allRows[rowNum-1].slice();
     while(vals.length<DEBT_HEADERS.length)vals.push('');
     vals[DC.person_name]=name; vals[DC.principal_amount]=c.principal; vals[DC.interest_amount]=c.interest;
     vals[DC.total_amount]=c.total; vals[DC.paid_amount]=c.paid; vals[DC.remaining_amount]=c.remaining;
