@@ -471,8 +471,10 @@ function demo(p, ok, fail) {
         debt.updated_at         = new Date().toISOString();
         var pdate = p.payment_date || new Date().toISOString().slice(0,10);
         var now2  = new Date().toISOString();
+        // [BUG FIX] Include notes in installment record
         DI.push({ id:_demoInstId(), debt_id:p.debt_id,
-                  payment_amount:pay, payment_date:pdate, created_at:now2 });
+                  payment_amount:pay, payment_date:pdate, created_at:now2,
+                  notes: _sNotes(p.notes || '') });
         ok({ success:true, data:JSON.parse(JSON.stringify(debt)) });
       }
       else if (action === 'archiveDebt') {
@@ -491,15 +493,16 @@ function demo(p, ok, fail) {
       else if (action === 'addPenalty') {
         var pidx = DD.findIndex(function(x) { return x.id === p.id; });
         if (pidx < 0) { fail && fail('Tidak ditemukan'); return; }
+        // [BUG FIX] Was checking undefined `pen` instead of `_pen`
         var _pen = _rpInt(p.penalty_amount || 0);
-        if (pen <= 0) { fail && fail('Jumlah denda harus lebih dari 0'); return; }
+        if (_pen <= 0) { fail && fail('Jumlah denda harus lebih dari 0'); return; }
         var ddbt = DD[pidx];
-        ddbt.penalty_total   = (ddbt.penalty_total || 0) + _pen;
-        ddbt.total_amount    = ddbt.total_amount + _pen;
-        ddbt.remaining_amount = Math.max(0, ddbt.remaining_amount + _pen);
+        ddbt.penalty_total      = (ddbt.penalty_total || 0) + _pen;
+        ddbt.total_amount       = ddbt.total_amount + _pen;
+        ddbt.remaining_amount   = Math.max(0, ddbt.remaining_amount + _pen);
         ddbt.overpayment_amount = ddbt.paid_amount > ddbt.total_amount ? ddbt.paid_amount - ddbt.total_amount : 0;
-        ddbt.status = ddbt.remaining_amount <= 0 ? 'paid' : 'active';
-        ddbt.updated_at = new Date().toISOString();
+        ddbt.status             = ddbt.remaining_amount <= 0 ? 'paid' : 'active';
+        ddbt.updated_at         = new Date().toISOString();
         ok({ success:true, data:JSON.parse(JSON.stringify(ddbt)) });
       }
       else if (action === 'healthCheck') {
@@ -1563,7 +1566,7 @@ g('btn-pay').addEventListener('click', function() {
       S.archivedDebts = snapshot.archivedDebts;
       // Re-render current view to reflect rollback
       if (S.page === 'dashboard') renderDash(S.debts, buildSummary(S.debts.concat(S.archivedDebts)));
-      if (S.page === 'transactions') renderTx();
+      if (S.page === 'transactions') renderTxPage();
       if (S.page === 'detail' && S.selId === did) renderDetail(did);
     }
   );

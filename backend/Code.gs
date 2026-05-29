@@ -651,7 +651,9 @@ function _recalc(debtId,dsh) {
       vals[DC.total_amount]=c.total; vals[DC.paid_amount]=c.paid;
       vals[DC.remaining_amount]=c.remaining; vals[DC.overpayment_amount]=c.overpayment;
       vals[DC.status]=c.status; vals[DC.updated_at]=now;
-      dsh.getRange(r+1,1,1,nc).setValues([vals]);
+      // [BUG FIX] Use actual vals length, not stale nc, to avoid truncating new columns
+      var writeNc = Math.max(nc, vals.length);
+      dsh.getRange(r+1,1,1,writeNc).setValues([vals]);
       return {success:true,data:{
         id:debtId, person_name:sStr(draw[r][DC.person_name],200),
         principal_amount:prin, interest_amount:inter,
@@ -695,17 +697,16 @@ function addPenalty(params) {
     while (row.length < DEBT_HEADERS.length) row.push('');
     row[DC.penalty_total] = newPen;
     row[DC.updated_at]    = nowWIB();
-    sh.getRange(rowNum, 1, 1, Math.max(nc, DEBT_HEADERS.length)).setValues([row]);
+    // [BUG FIX] Build recalculated values first, then write ONCE with all fields updated
     var c = buildDebt(prin, inter, paid, newPen);
-    var vals = row.slice();
-    vals[DC.total_amount]       = c.total;
-    vals[DC.remaining_amount]   = c.remaining;
-    vals[DC.overpayment_amount] = c.overpayment;
-    vals[DC.status]             = c.status;
-    sh.getRange(rowNum, 1, 1, Math.max(nc, DEBT_HEADERS.length)).setValues([vals]);
+    row[DC.total_amount]       = c.total;
+    row[DC.remaining_amount]   = c.remaining;
+    row[DC.overpayment_amount] = c.overpayment;
+    row[DC.status]             = c.status;
+    sh.getRange(rowNum, 1, 1, Math.max(nc, DEBT_HEADERS.length)).setValues([row]);
     invalidateCache();
     logInfo('addPenalty OK: ' + id + ' +Rp' + penalty + ' (total denda: Rp' + newPen + ')');
-    return { success: true, data: rToDebt(vals) };
+    return { success: true, data: rToDebt(row) };
   } catch(err) { logError('addPenalty', err); return { success: false, message: err.message }; }
   finally { releaseLock(lock); }
 }
