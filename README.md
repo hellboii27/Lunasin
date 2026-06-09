@@ -284,3 +284,15 @@ Saat diakses di luar Google Apps Script (misal: langsung buka `Index.html` di br
 ## 📄 Lisensi
 
 MIT License — bebas digunakan, dimodifikasi, dan didistribusikan dengan mencantumkan kredit.
+
+---
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=hellboii27%2FLunasin&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left" />
+ </picture>
+</a>
