@@ -291,8 +291,8 @@ MIT License — bebas digunakan, dimodifikasi, dan didistribusikan dengan mencan
 
 <a href="https://www.star-history.com/?repos=hellboii27%2FLunasin&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&theme=dark&legend=top-left&sealed_token=TBohgGhszczw_O4Go8TTXPrA9QXyNOnDi06JznkTaUUswEw2S2PdFg12tIG26OD5j3fuZTmBLQVbT-kLCyU5CxQmSMs3272hEVnCxTkiLHaW7nj8zKBSCA" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left&sealed_token=TBohgGhszczw_O4Go8TTXPrA9QXyNOnDi06JznkTaUUswEw2S2PdFg12tIG26OD5j3fuZTmBLQVbT-kLCyU5CxQmSMs3272hEVnCxTkiLHaW7nj8zKBSCA" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=hellboii27/Lunasin&type=date&legend=top-left&sealed_token=TBohgGhszczw_O4Go8TTXPrA9QXyNOnDi06JznkTaUUswEw2S2PdFg12tIG26OD5j3fuZTmBLQVbT-kLCyU5CxQmSMs3272hEVnCxTkiLHaW7nj8zKBSCA" />
  </picture>
 </a>
